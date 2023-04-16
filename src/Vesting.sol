@@ -31,7 +31,7 @@ contract Vesting is Ownable {
     uint16 public accelerationRatioWithdrawable = 90_000_000_000;
 
     /// @notice The precision used for the acceleration ratio calculations (100% in this case, represented as a decimal with 12 decimal places).
-    uint16 public accelerationRatioPrecision = 100_000_000_000;
+    uint16 constant public ACCELERATION_RATIO_PRECISION = 100_000_000_000;
 
     /// @notice The base acceleration fee for accelerating the vesting of `bdBLB` tokens.
     uint16 public baseAccelerationFee = 0;
@@ -48,6 +48,12 @@ contract Vesting is Ownable {
     /// @notice The duration of the lockdrop (60 days in this case).
     uint256 public lockDropDuration = 60 days;
 
+    /// @notice The total amount of `bdBLB` tokens distributed during the lockdrop.
+    mapping (address => uint256) public allocations;
+
+    /// @notice The vesting schedule for each user.
+    mapping(address => VestingSchedule) internal _vestingSchedules;
+
     struct VestingSchedule {
         uint256 claimableBalance;
         uint64 userEpoch;
@@ -60,35 +66,45 @@ contract Vesting is Ownable {
         uint256 tokenPrice;
     }
 
-    mapping(address => VestingSchedule) internal _vestingSchedules;
+    /// @notice The epochs of the lockdrop.
+    Epoch[5] internal epochs = [
+        // Epoch 0
+        Epoch({fdv: 20000000, tokenPrice: 2 * 10 ** 16}),
+        // Epoch 1
+        Epoch({fdv: 25000000, tokenPrice: 25 * 10 ** 15}),
+        // Epoch 2
+        Epoch({fdv: 30000000, tokenPrice: 3 * 10 ** 16}),
+        // Epoch 3
+        Epoch({fdv: 40000000, tokenPrice: 4 * 10 ** 16}),
+        // Epoch 4
+        Epoch({fdv: 50000000, tokenPrice: 5 * 10 ** 16})
+        ];
 
-    Epoch[] public epochs = [
-        Epoch(20000000, 2 * 10 ** 16),
-        Epoch(25000000, 25 * 10 ** 15),
-        Epoch(30000000, 3 * 10 ** 16),
-        Epoch(40000000, 4 * 10 ** 16),
-        Epoch(50000000, 5 * 10 ** 16)
-    ];
+    /// @notice ensures that the lockdrop is inactive.
+    modifier lockDropInactive() {
+        require(block.timestamp >= startTime + lockDropDuration, LockDropStillOngoing());
+        _;
+    }
 
     /// @param _blb The address of the $BLB token.
     /// @param _startTime The start time of the token distribution.
     /// @param _treasury The address of the treasury.
     constructor(address _blb, uint16 _startTime, address _treasury) Ownable {
-        require(_blb != address(0), AddressZero());
-        require(_treasury != address(0), AddressZero());
-        require(_startTime > block.timestamp, InvalidStartTime());
-
-        blb = IERC20(_blb);
+        require(_startTime >= block.timestamp, InvalidStartTime());
         startTime = _startTime;
+
+        require(_blb != address(0), AddressZero());
+        blb = IERC20(_blb);
+        
+        require(_treasury != address(0), AddressZero());
         treasury = _treasury;
     }
 
-    /// @notice Emits a Distributed event for the specified user, amount, and epoch.
+    /// @notice Distributes tokens to a user.
     /// @param _user The address of the user receiving the distribution.
     /// @param _amount The amount of tokens being distributed.
     /// @param _epoch The epoch of the distribution.
-    function distribute(address _user, uint256 _amount, uint256 _epoch) external {
-        require(block.timestamp >= startTime + lockDropDuration, LockDropStillOngoing());
+    function distribute(address _user, uint256 _amount, uint256 _epoch) external lockDropInactive {
 
         VestingSchedule storage v = _vestingSchedules[_user];
         require(v.amount > 0, "Not a participant");
@@ -98,17 +114,25 @@ contract Vesting is Ownable {
     }
 
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying current acceleration fee.
-    function accelerateVesting() external {
+    function accelerateVesting() external lockDropInactive {
         // pay acceleration fee
-        
+        uint256 _accelerationFee = getCurrentAccelerationFee();
 
-        // Redistribute the remaining tokens to other users (implementation needed)
 
-        emit Accelerated(msg.sender, unlockedAmount, accelerationFee, redistributedAmount);
+        uint256 _totalClaimable = _claimable(msg.sender, _currentEpoch);
+
+        // only claim 90% of the tokens
+        uint256 _unlockedAmount = _totalClaimable * accelerationRatioWithdrawable / ACCELERATION_RATIO_PRECISION;
+
+
+        // the rest is redistributed 
+        uint256 _redistributedAmount = _totalClaimable - _unlockedAmount;
+
+        emit Accelerated(msg.sender, _unlockedAmount, _accelerationFee, _redistributedAmount);
 }
 
 
-    /// @notice Claims the $BLB tokens for the calling user.
+    /// @notice Claims the $BLB tokens for the calling user during the lockdrop.
     function claim() external {
         uint256 _currentEpoch = getCurrentEpoch();
         uint256 _claimableBalance = _claimable(msg.sender, _currentEpoch);
