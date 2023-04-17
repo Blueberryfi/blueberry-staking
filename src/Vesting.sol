@@ -52,7 +52,7 @@ contract Vesting is Ownable {
     mapping (address => uint256) public allocations;
 
     /// @notice The vesting schedule for each user.
-    mapping(address => VestingSchedule) internal _vestingSchedules;
+    mapping(address => VestingSchedule[]) internal _vestingSchedules;
 
     struct VestingSchedule {
         uint256 claimableBalance;
@@ -66,7 +66,7 @@ contract Vesting is Ownable {
         uint256 tokenPrice;
     }
 
-    /// @notice The epochs of the lockdrop.
+    /// @notice The hardcoded epochs of the lockdrop.
     Epoch[5] internal epochs = [
         // Epoch 0
         Epoch({fdv: 20000000, tokenPrice: 2 * 10 ** 16}),
@@ -86,40 +86,26 @@ contract Vesting is Ownable {
         _;
     }
 
-    /// @param _blb The address of the $BLB token.
     /// @param _startTime The start time of the token distribution.
-    /// @param _treasury The address of the treasury.
-    constructor(address _blb, uint16 _startTime, address _treasury) Ownable {
+    constructor(uint16 _startTime) Ownable {
         require(_startTime >= block.timestamp, InvalidStartTime());
         startTime = _startTime;
-
-        require(_blb != address(0), AddressZero());
-        blb = IERC20(_blb);
-        
-        require(_treasury != address(0), AddressZero());
-        treasury = _treasury;
     }
 
-    /// @notice Distributes tokens to a user.
-    /// @param _user The address of the user receiving the distribution.
-    /// @param _amount The amount of tokens being distributed.
-    /// @param _epoch The epoch of the distribution.
-    function distribute(address _user, uint256 _amount, uint256 _epoch) external lockDropInactive {
-
-        VestingSchedule storage v = _vestingSchedules[_user];
-        require(v.amount > 0, "Not a participant");
-        require(block.timestamp >= v.unlockTime, "Tokens still locked");
+    /// @notice Distributes tokens to the sender.
+    function distribute() external {
         
-        emit Distributed(_user, _amount, _epoch);
     }
 
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying current acceleration fee.
-    function accelerateVesting() external lockDropInactive {
-        // pay acceleration fee
-        uint256 _accelerationFee = getCurrentAccelerationFee();
+    /// @notice User must have have given this contract allowance to transfer the acceleration fee.
+    function accelerateVesting(uint8 _epoch) external lockDropInactive {
+        // get current acceleration fee
+        uint256 _accelerationFee = getCurrentAccelerationFee(msg.sender, _epoch);
+        // transfer the fee to the treasury
+        USDC.transferFrom(msg.sender, treasury, _accelerationFee);
 
-
-        uint256 _totalClaimable = _claimable(msg.sender, _currentEpoch);
+        uint256 _totalClaimable = _claimable(msg.sender, _epoch);
 
         // only claim 90% of the tokens
         uint256 _unlockedAmount = _totalClaimable * accelerationRatioWithdrawable / ACCELERATION_RATIO_PRECISION;
@@ -129,8 +115,7 @@ contract Vesting is Ownable {
         uint256 _redistributedAmount = _totalClaimable - _unlockedAmount;
 
         emit Accelerated(msg.sender, _unlockedAmount, _accelerationFee, _redistributedAmount);
-}
-
+    }
 
     /// @notice Claims the $BLB tokens for the calling user during the lockdrop.
     function claim() external {
@@ -148,20 +133,9 @@ contract Vesting is Ownable {
     }
 
 
-    function _claimable(address _address, uint256 _currentEpoch) internal view returns (uint256 _balance) {
-        VestingSchedule storage v = _vestingSchedules[msg.sender];
-
-        require(_currentEpoch > v.lastClaimedEpoch, InvalidEpoch());
-
-        if v.userEpoch == _currentEpoch) {
-            return v.claimableBalance;
-        } else if (v.userEpoch < _currentEpoch) {
-            uint256 currentEpochBalance = v.claimableBalance * currentEpochDuration / currentEpochVestingDuration;
-            uint256 currentEpochLockDropBalance = v.claimableBalance * currentEpochDuration / currentEpochLockDropDuration;
-            return currentEpochBalance + currentEpochLockDropBalance;
-        } else {
-            return 0;
-        }
+    function _claimable(address _user, uint256 _epoch) internal view returns (uint256 _balance) {
+        VestingSchedule storage v = _vestingSchedules[_user][_epoch];
+        uint256 _claimableBalance = v.claimableBalance;
     }
 
     function getCurrentEpoch() public view returns (Epoch _epoch) {
