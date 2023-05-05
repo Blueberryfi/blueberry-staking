@@ -16,6 +16,7 @@ error LockDropInactive();
 error NotKeeper();
 error InvalidIndex();
 error InvalidAmount();
+error InvalidbToken();
 
 contract Vesting is Ownable {
 
@@ -84,9 +85,9 @@ contract Vesting is Ownable {
 
     /// @notice The vesting months for the lockdrop.
     VestingMonth[2] internal _vestingMonths = [
-        // $40M FDV at $0.04
+        // $40M FDV at $0.04 BLB
         VestingMonth({fdv: 40_000_000, tokenPrice: 4e16}),
-        // $80M FDV at $0.08
+        // $80M FDV at $0.08 BLB
         VestingMonth({fdv: 80_000_000, tokenPrice: 8e16})
     ];
 
@@ -151,16 +152,21 @@ contract Vesting is Ownable {
         bTokenWhitelist[0x23ED643A4C4542E223e7c7815d420d6d42556006] = true;
     }
 
-    /// @notice Locks the given amount of USDC tokens for the sender.
-    /// @notice User must have have given this contract allowance to transfer the USDC tokens.
-    /// @param _amount The amount of USDC tokens to lock.
-    function lock(uint256 _amount) external ensureLockDropActive {
+    /// @notice Locks the given amount of bTokens for the sender.
+    /// @notice User must have have given this contract allowance to transfer the  tokens.
+    /// @param _amount The amount of bTokens to lock.
+    function lock(uint256 _amount, IERC20 _bToken) external ensureLockDropActive {
+        // ensure that the bToken is whitelisted
+        if (!bTokenWhitelist[address(_bToken)]){
+            revert InvalidbToken();
+        }
+
         if (_amount <= 0){
             revert InvalidAmount();
         }
 
         // transfer the tokens to this contract
-        USDC.transferFrom(msg.sender, address(this), _amount);
+        _bToken.transferFrom(msg.sender, address(this), _amount);
 
         // add the tokens to the user's locked balance
         lockedBalance[msg.sender] += _amount;

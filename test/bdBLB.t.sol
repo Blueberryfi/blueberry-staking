@@ -5,6 +5,9 @@ import "../lib/forge-std/src/Test.sol";
 import "../src/bdBLB.sol";
 
 contract bdBLBTest is Test {
+    IERC20 blb;
+    IERC20 usdc;
+    
     function setUp() public {
         blb = IERC20(address(this));
         usdc = IERC20(address(this));
