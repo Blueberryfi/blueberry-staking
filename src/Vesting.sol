@@ -84,8 +84,10 @@ contract Vesting is Ownable {
 
     /// @notice The vesting months for the lockdrop.
     VestingMonth[2] internal _vestingMonths = [
-        VestingMonth({fdv: 25_000_000, tokenPrice: 2 * 10 ** 16}),
-        VestingMonth({fdv: 50_000_000, tokenPrice: 25 * 10 ** 15})
+        // $40M FDV at $0.04
+        VestingMonth({fdv: 40_000_000, tokenPrice: 4e16}),
+        // $80M FDV at $0.08
+        VestingMonth({fdv: 80_000_000, tokenPrice: 8e16})
     ];
 
     /// @notice ensures that the lockdrop is inactive.
@@ -128,25 +130,25 @@ contract Vesting is Ownable {
         // Update the whitelist for bTokens
 
         // bWETH
-        // bTokenWhitelist[0x8E09cC1d00c9bd67f99590E1b2433bF4Db5309C3] = true;
+        bTokenWhitelist[0x8E09cC1d00c9bd67f99590E1b2433bF4Db5309C3] = true;
 
         // bDAI
-        // bTokenWhitelist[0xcB5C1909074C7ac1956DdaFfA1C2F1cbcc67b932] = true;
+        bTokenWhitelist[0xcB5C1909074C7ac1956DdaFfA1C2F1cbcc67b932] = true;
 
         // bWBTC
-        // bTokenWhitelist[0x506c190340F786c65548C0eE17c5EcDbba7807e0] = true;
+        bTokenWhitelist[0x506c190340F786c65548C0eE17c5EcDbba7807e0] = true;
 
         // bUSDC
-        // bTokenWhitelist[0xdfd54ac444eEffc121E3937b4EAfc3C27d39Ae64] = true;
+        bTokenWhitelist[0xdfd54ac444eEffc121E3937b4EAfc3C27d39Ae64] = true;
 
         // bICHI
-        // bTokenWhitelist[0xBDf1431c153A2A48Ee05C1F24b9Dc476C93F75aE] = true;
+        bTokenWhitelist[0xBDf1431c153A2A48Ee05C1F24b9Dc476C93F75aE] = true;
 
         // bSUSHI
-        // bTokenWhitelist[0x8644e2126776daFE02C661939075740EC378Db00] = true;
+        bTokenWhitelist[0x8644e2126776daFE02C661939075740EC378Db00] = true;
 
         // bCRV
-        // bTokenWhitelist[0x23ED643A4C4542E223e7c7815d420d6d42556006] = true;
+        bTokenWhitelist[0x23ED643A4C4542E223e7c7815d420d6d42556006] = true;
     }
 
     /// @notice Locks the given amount of USDC tokens for the sender.
@@ -204,7 +206,7 @@ contract Vesting is Ownable {
         USDC.transfer(msg.sender, _realWithdrawalAmount);
 
         // emit the Withdrawn event
-        emit Withdrawn(msg.sender, lockedBalance[msg.sender], _withdrawalFee, );
+        //emit Withdrawn(msg.sender, lockedBalance[msg.sender], _withdrawalFee, );
     }
 
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying the acceleration fee for the given vesting schedule.
