@@ -1,4 +1,13 @@
 // SPDX-License-Identifier: MIT
+/*
+██████╗ ██╗     ██╗   ██╗███████╗██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗
+██╔══██╗██║     ██║   ██║██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝
+██████╔╝██║     ██║   ██║█████╗  ██████╔╝█████╗  ██████╔╝██████╔╝ ╚████╔╝
+██╔══██╗██║     ██║   ██║██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗██╔══██╗  ╚██╔╝
+██████╔╝███████╗╚██████╔╝███████╗██████╔╝███████╗██║  ██║██║  ██║   ██║
+╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+*/
+
 pragma solidity 0.8.19;
 
 import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -17,6 +26,9 @@ error NotKeeper();
 error InvalidIndex();
 error InvalidAmount();
 error InvalidbToken();
+error ZeroEmissionSchedules();
+error TransferFailed();
+error VestingNotCompleted();
 
 contract Vesting is Ownable {
 
@@ -40,11 +52,11 @@ contract Vesting is Ownable {
     /// @notice The address of the keeper for automation.
     address public keeper;
 
-    /// @notice The ratio of `bdBLB` tokens that can be withdrawn upon acceleration (90% in this case, represented as a decimal with 12 decimal places).
-    uint256 public accelerationRatioWithdrawable = 90_000_000_000;
+    /// @notice The ratio of `bdBLB` tokens at the beginning of vest that are withdrawable (70% in this case).
+    uint256 public BASE_UNLOCK_PENALTY_RATIO = 700_000_000_000_000_000;
 
-    /// @notice The precision used for the acceleration ratio calculations (100% in this case, represented as a decimal with 12 decimal places).
-    uint256 constant public ACCELERATION_RATIO_PRECISION = 100_000_000_000;
+    /// @notice The precision used for ratio calculations.
+    uint256 constant public RATIO_PRECISION = 1_000_000_000_000_000_000;
 
     /// @notice The timestamp when the lockdrop starts.
     uint16 public startTime;
@@ -76,12 +88,21 @@ contract Vesting is Ownable {
         uint256 claimableBalanceBLB;
         uint256 lockedBalanceUSDC;
         uint64 epoch;
+        uint64 startTime;
     }
 
     struct VestingMonth {
         uint256 fdv;
         uint256 tokenPrice;
     }
+
+    struct EmissionSchedule {
+        address bToken;
+        uint256 bdBLBAmount;
+    }
+
+    /// @notice The emission schedules for each bToken.
+    EmissionSchedule[] public emissionSchedules;
 
     /// @notice The vesting months for the lockdrop.
     VestingMonth[2] internal _vestingMonths = [
@@ -116,17 +137,22 @@ contract Vesting is Ownable {
     }
 
     /// @param _startTime The start time of the token distribution.
-    constructor(uint16 _startTime, address _keeper) Ownable() {
+    /// @param _keeper The address of the keeper for automation.
+    /// @param _emissionSchedules The emission schedules for each bToken.
+    constructor(uint16 _startTime, address _keeper, EmissionSchedule[] memory _emissionSchedules) Ownable() {
         if (_startTime >= block.timestamp){
             revert InvalidStartTime();
         }
-
-        startTime = _startTime;
-
+        if (_emissionSchedules.length == 0){
+            revert ZeroEmissionSchedules();
+        }
         if (_keeper == address(0)){
             revert AddressZero();
         }
+
+        startTime = _startTime;
         keeper = _keeper;
+        emissionSchedules = _emissionSchedules;
 
         // Update the whitelist for bTokens
 
@@ -152,82 +178,28 @@ contract Vesting is Ownable {
         bTokenWhitelist[0x23ED643A4C4542E223e7c7815d420d6d42556006] = true;
     }
 
-    /// @notice Locks the given amount of bTokens for the sender.
-    /// @notice User must have have given this contract allowance to transfer the  tokens.
-    /// @param _amount The amount of bTokens to lock.
-    function lock(uint256 _amount, IERC20 _bToken) external ensureLockDropActive {
-        // ensure that the bToken is whitelisted
-        if (!bTokenWhitelist[address(_bToken)]){
-            revert InvalidbToken();
-        }
-
-        if (_amount <= 0){
-            revert InvalidAmount();
-        }
-
-        // transfer the tokens to this contract
-        _bToken.transferFrom(msg.sender, address(this), _amount);
-
-        // add the tokens to the user's locked balance
-        lockedBalance[msg.sender] += _amount;
-
-        // calculate the amount of `bdBLB` tokens that will be available for the user to claim
-        uint256 _claimableAmount = calculatebdBLBAmount(_amount);
-
-        // get the current epoch
-        uint64 _currentEpoch = getCurrentEpoch();
-
-        // create a new vesting schedule
-        VestingSchedule memory _newSchedule = VestingSchedule({
-            claimableBalanceBLB: _claimableAmount,
-            epoch: _currentEpoch,
-            lockedBalanceUSDC: _amount
-        });
-
-        // add the vesting schedule to the user's list of vesting schedules
-        vestingSchedules[msg.sender].push(_newSchedule);
-
-        // emit the Locked event
-        emit Locked(msg.sender, _amount);
-    }
-
-    /// @notice Withdraws the locked balance of the caller's vesting schedule specified.
-    function withdraw(uint256 _vestingScheduleIndex) external {
-        // cannot withdraw from a non-existent vesting schedule deposit
-        if (vestingSchedules[msg.sender][_vestingScheduleIndex].lockedBalanceUSDC <= 0){
-            revert InvalidBalance();
-        }
-
-        bool _lockDropActive = block.timestamp < startTime + lockDropDuration;
-
-        // if the lockdrop is active, a 1% fee will be levied on the withdrawal
-        uint256 _realWithdrawalAmount = vestingSchedules[msg.sender][_vestingScheduleIndex].lockedBalanceUSDC;
-        if (_lockDropActive) {
-            uint256 _withdrawalFee = vestingSchedules[msg.sender][_vestingScheduleIndex].lockedBalanceUSDC / 100;
-            feesWithdrawable += _withdrawalFee;
-            _realWithdrawalAmount -= _withdrawalFee;
-        }
-
-        // transfer the tokens to the user
-        USDC.transfer(msg.sender, _realWithdrawalAmount);
-
-        // emit the Withdrawn event
-        //emit Withdrawn(msg.sender, lockedBalance[msg.sender], _withdrawalFee, );
-    }
-
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying the acceleration fee for the given vesting schedule.
     /// @notice User must have have given this contract allowance to transfer the acceleration fee.
+    /// @dev Penalty ratio linearly decreases over the course of the vesting period.
+    /// 1 +        
+    ///   | \      
+    ///   |    \   
+    ///   |       \
+    ///   |          \
+    /// 0 +------+-----> 1 year
     /// @param _vestingScheduleIndex The index of the vesting schedule to accelerate.
     function accelerateVesting(uint256 _vestingScheduleIndex) external ensureLockDropInactive {
-
         // index must exist
         require(vestingSchedules[msg.sender].length > _vestingScheduleIndex, InvalidIndex());
+
+        uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(msg.sender, vestingSchedules[msg.sender][_vestingScheduleIndex]);
 
         // get acceleration fee
         uint256 _accelerationFee = getAccelerationFee(msg.sender, vestingSchedules[msg.sender][_vestingScheduleIndex]);
 
         // transfer the fee to the treasury
-        USDC.transferFrom(msg.sender, treasury, _accelerationFee);
+        (bool success,) = USDC.transferFrom(msg.sender, treasury, _accelerationFee);
+        require(success, TransferFailed());
 
         //uint256 _totalClaimable = claimable(msg.sender, _epoch);
 
@@ -241,20 +213,53 @@ contract Vesting is Ownable {
         //emit Accelerated(msg.sender, _unlockedAmount, _accelerationFee, _redistributedAmount);
     }
 
+    /// @dev Claims the tokens that have completed their vesting schedule for the caller.
+    /// @param _vestingScheduleIndex The index of the vesting schedule to claim.
+    function claim(uint256 _vestingScheduleIndex) external {
+        // index must exist
+        require(vestingSchedules[msg.sender].length > _vestingScheduleIndex, InvalidIndex());
+
+        // Retrieve the vesting schedule for the caller and specified index
+        VestingSchedule _vestingSchedule = vestingSchedules[msg.sender][_vestingScheduleIndex];
+
+        // make sure the vesting has completed
+        require(block.timestamp >= _vestingSchedule.startTime + 1 years, VestingNotCompleted());
+
+        // get the claimable amount
+        uint256 _claimable = getClaimableBeforeFees(msg.sender, _vestingSchedule);
+
+        // update the vesting schedule and prep for removal
+        vestingSchedules[msg.sender][_vestingScheduleIndex] = vestingSchedules[msg.sender][vestingSchedules[msg.sender].length - 1];    
+        vestingSchedules[msg.sender].pop();
+
+        // transfer the tokens
+        bdBLB.transfer(msg.sender, _claimable);
+
+        emit Claimed(msg.sender, _claimable);
+    }
+
+
     function getCurrentEpoch() public view returns (uint64 _currentEpoch) {
         require(block.timestamp >= startTime, InvalidStartTime());
         _currentEpoch = (block.timestamp - startTime) / epochDuration;
     }
 
-    /// @notice Calculates the acceleration fee based on the underlying BLB price and early unlock penalty ratio.
-    /// @return _amount The calculated acceleration fee.
-    function getAccelerationFee() public view returns (uint256 _amount){
-        
-
-    }
-
-    function calculateRedistributionAmount(uint256 bdBLBBalance, uint256 earlyUnlockPenaltyRatio) public view returns (uint256 _amount){
-
+    /**
+     * @dev Gets the current unlock penalty ratio, which linearly decreases from 70% to 0% over the vesting period.
+     * This is done by calculating the ratio of the time that has passed since the start of the vesting period to the total vesting period.
+     * @param _user The user's address.
+     * @param _vestingScheduleIndex The index of the vesting schedule.
+     * @return _earlyUnlockPenaltyRatio The current unlock penalty ratio multiplied by 1e15.
+     */
+    function getEarlyUnlockPenaltyRatio(address _user, uint256 _vestingScheduleIndex) public view returns (uint256 _earlyUnlockPenaltyRatio){
+        // Retrieve the vesting schedule for the user and specified index
+        VestingSchedule _vestingSchedule = vestingSchedules[_user][_vestingScheduleIndex];
+        // Get the current timestamp
+        uint256 _blockTimestamp = block.timestamp;
+        // Calculate the vesting end time by adding 1 year to the vesting start time
+        uint256 _vestEndTime = _vestingSchedule.startTime + 1 years;
+        // Calculate the early unlock penalty ratio based on the time passed and total vesting period
+        _earlyUnlockPenaltyRatio = (_vestEndTime - _blockTimestamp) * 1e15 / 1 years;
     }
 
     function calculatebdBLBAmount(uint256 _lockedUSDC) public view returns (uint256 _amount){
@@ -282,6 +287,13 @@ contract Vesting is Ownable {
      */
     function _getCurrentTime() internal view virtual returns (uint256) {
         return block.timestamp;
+    }
+
+    /**
+     * @dev Returns the specified user's vesting schedules.
+     */
+    function getVestingSchedules(address _user) public view returns (VestingSchedule[] memory _vestingSchedules){
+        _vestingSchedules = vestingSchedules[_user];
     }
 
     /**
