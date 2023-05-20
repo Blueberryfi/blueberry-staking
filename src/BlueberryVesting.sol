@@ -30,7 +30,7 @@ error ZeroEmissionSchedules();
 error TransferFailed();
 error VestingNotCompleted();
 
-contract Vesting is Ownable {
+contract BlueberryVesting is Ownable {
 
     event Distributed(address indexed user, uint256 amount, uint256 epoch);
 
@@ -153,39 +153,16 @@ contract Vesting is Ownable {
         startTime = _startTime;
         keeper = _keeper;
         emissionSchedules = _emissionSchedules;
-
-        // Update the whitelist for bTokens
-
-        // bWETH
-        bTokenWhitelist[0x8E09cC1d00c9bd67f99590E1b2433bF4Db5309C3] = true;
-
-        // bDAI
-        bTokenWhitelist[0xcB5C1909074C7ac1956DdaFfA1C2F1cbcc67b932] = true;
-
-        // bWBTC
-        bTokenWhitelist[0x506c190340F786c65548C0eE17c5EcDbba7807e0] = true;
-
-        // bUSDC
-        bTokenWhitelist[0xdfd54ac444eEffc121E3937b4EAfc3C27d39Ae64] = true;
-
-        // bICHI
-        bTokenWhitelist[0xBDf1431c153A2A48Ee05C1F24b9Dc476C93F75aE] = true;
-
-        // bSUSHI
-        bTokenWhitelist[0x8644e2126776daFE02C661939075740EC378Db00] = true;
-
-        // bCRV
-        bTokenWhitelist[0x23ED643A4C4542E223e7c7815d420d6d42556006] = true;
     }
 
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying the acceleration fee for the given vesting schedule.
     /// @notice User must have have given this contract allowance to transfer the acceleration fee.
     /// @dev Penalty ratio linearly decreases over the course of the vesting period.
     /// 1 +        
-    ///   | \      
-    ///   |    \   
-    ///   |       \
-    ///   |          \
+    ///   | .      
+    ///   |    .   
+    ///   |       .
+    ///   |          .
     /// 0 +------+-----> 1 year
     /// @param _vestingScheduleIndex The index of the vesting schedule to accelerate.
     function accelerateVesting(uint256 _vestingScheduleIndex) external ensureLockDropInactive {
@@ -198,7 +175,7 @@ contract Vesting is Ownable {
         uint256 _accelerationFee = getAccelerationFee(msg.sender, vestingSchedules[msg.sender][_vestingScheduleIndex]);
 
         // transfer the fee to the treasury
-        (bool success,) = USDC.transferFrom(msg.sender, treasury, _accelerationFee);
+        (bool success ,) = USDC.transferFrom(msg.sender, treasury, _accelerationFee);
         require(success, TransferFailed());
 
         //uint256 _totalClaimable = claimable(msg.sender, _epoch);
@@ -215,7 +192,7 @@ contract Vesting is Ownable {
 
     /// @dev Claims the tokens that have completed their vesting schedule for the caller.
     /// @param _vestingScheduleIndex The index of the vesting schedule to claim.
-    function claim(uint256 _vestingScheduleIndex) external {
+    function claimCompletedVesting(uint256 _vestingScheduleIndex) external {
         // index must exist
         require(vestingSchedules[msg.sender].length > _vestingScheduleIndex, InvalidIndex());
 
@@ -237,7 +214,6 @@ contract Vesting is Ownable {
 
         emit Claimed(msg.sender, _claimable);
     }
-
 
     function getCurrentEpoch() public view returns (uint64 _currentEpoch) {
         require(block.timestamp >= startTime, InvalidStartTime());
@@ -291,9 +267,31 @@ contract Vesting is Ownable {
 
     /**
      * @dev Returns the specified user's vesting schedules.
+     * @param _user The user's address.
      */
     function getVestingSchedules(address _user) public view returns (VestingSchedule[] memory _vestingSchedules){
         _vestingSchedules = vestingSchedules[_user];
+    }
+
+
+    /**
+     * @dev Checks the caller's vesting schedules to see if an update is required.
+     * It should be noted that in order for the distribution to be equal to 60 days,
+     * 
+     * @return _currentEpoch The current epoch.
+     */
+    function getCurrentEpoch() public view returns (uint64 _currentEpoch) {
+        require(block.timestamp >= startTime, InvalidStartTime());
+        _currentEpoch = (block.timestamp - startTime) / epochDuration;
+    }
+
+    /**
+     * @dev Checks the caller's vesting schedules to see if an update is required.
+     */
+    function updateVestingSchedules() public {
+        if (_vestingSchedules[msg.sender].lastUpdateEpoch < getCurrentEpoch()) {
+            return;
+        }
     }
 
     /**

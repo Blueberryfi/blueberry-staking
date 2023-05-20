@@ -9,12 +9,11 @@
 */
 pragma solidity 0.8.19;
 
-import { ERC20Burnable } from "openzeppelin/token/ERC20/extensions/ERC20Burnable.sol";
-import { ERC20 } from "openzeppelin/token/ERC20/ERC20.sol";
-import { Ownable } from "openzeppelin/access/Ownable.sol";
+import { ERC721 } from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
 
-contract bdBLB is ERC20Burnable, Ownable {
-    constructor() ERC20Burnable("bdBLB", "bdBLB") {
-        _mint(msg.sender, uint256.max);
+contract bdBLB is ERC721, Ownable {
+    constructor() ERC721("bdBLB", "bdBLB") {
+        _mint(msg.sender, type(uint256).max);
     }
 }
