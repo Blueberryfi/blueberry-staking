@@ -13,24 +13,14 @@ pragma solidity 0.8.19;
 import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import { UD60x18 } from "../lib/prb-math/src/UD60x18.sol";
+import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
+import './BlueberryLib.sol';
 
-error NotOwner();
-error AddressZero();
-error InvalidStartTime();
-error InvalidBalance();
-error InvalidDuration();
-error InvalidEpoch();
-error LockDropActive();
-error LockDropInactive();
-error NotKeeper();
-error InvalidIndex();
-error InvalidAmount();
-error InvalidbToken();
-error ZeroEmissionSchedules();
-error TransferFailed();
-error VestingNotCompleted();
+contract Vesting is Ownable, Pausable {
 
-contract BlueberryVesting is Ownable {
+    /*//////////////////////////////////////////////////
+                         EVENTS
+    //////////////////////////////////////////////////*/
 
     event Distributed(address indexed user, uint256 amount, uint256 epoch);
 
@@ -39,6 +29,10 @@ contract BlueberryVesting is Ownable {
     event Locked(address indexed user, uint256 amount);
 
     event Withdrawn(address indexed user, uint256 vestingIndex, uint256 amount, uint256 feeAmount);
+
+    /*//////////////////////////////////////////////////
+                        VARIABLES
+    //////////////////////////////////////////////////*/
 
     /// @notice The `BLB` token contract.
     IERC20 public constant BLB = IERC20(0x904f36d74bED2Ef2729Eaa1c7A5B70dEA2966a02);
@@ -112,22 +106,6 @@ contract BlueberryVesting is Ownable {
         VestingMonth({fdv: 80_000_000, tokenPrice: 8e16})
     ];
 
-    /// @notice ensures that the lockdrop is inactive.
-    modifier ensureLockDropInactive() {
-        if (startTime + lockDropDuration < block.timestamp){
-            revert LockDropActive();
-        }
-        _;
-    }
-
-    /// @notice ensures that the lockdrop is active.
-    modifier ensureLockDropActive() {
-        if (block.timestamp < startTime + lockDropDuration){
-            revert LockDropInactive();
-        }
-        _;
-    }
-
     /// @notice ensures that the caller is the keeper.
     modifier onlyKeeper() {
         if (msg.sender != keeper){
@@ -156,7 +134,7 @@ contract BlueberryVesting is Ownable {
     }
 
     /// @notice Accelerates the vesting of the calling user, unlocking tokens by paying the acceleration fee for the given vesting schedule.
-    /// @notice User must have have given this contract allowance to transfer the acceleration fee.
+    /// @dev User must have have given this contract allowance to transfer the acceleration fee.
     /// @dev Penalty ratio linearly decreases over the course of the vesting period.
     /// 1 +        
     ///   | .      
@@ -165,7 +143,7 @@ contract BlueberryVesting is Ownable {
     ///   |          .
     /// 0 +------+-----> 1 year
     /// @param _vestingScheduleIndex The index of the vesting schedule to accelerate.
-    function accelerateVesting(uint256 _vestingScheduleIndex) external ensureLockDropInactive {
+    function accelerateVesting(uint256 _vestingScheduleIndex) external whenNotPaused() {
         // index must exist
         require(vestingSchedules[msg.sender].length > _vestingScheduleIndex, InvalidIndex());
 
@@ -192,7 +170,7 @@ contract BlueberryVesting is Ownable {
 
     /// @dev Claims the tokens that have completed their vesting schedule for the caller.
     /// @param _vestingScheduleIndex The index of the vesting schedule to claim.
-    function claimCompletedVesting(uint256 _vestingScheduleIndex) external {
+    function claimCompletedVesting(uint256 _vestingScheduleIndex) external whenNotPaused() {
         // index must exist
         require(vestingSchedules[msg.sender].length > _vestingScheduleIndex, InvalidIndex());
 
@@ -244,18 +222,11 @@ contract BlueberryVesting is Ownable {
         //return _bdBLBAmount;
     }
 
-    function changeTreasury(address _newTreasury) onlyOwner external {
-        treasury = _newTreasury;
-    }
+    
 
-    function updateBTokenWhitelist(address _bToken, bool _status) onlyOwner public {
-        bTokenWhitelist[_bToken] = _status;
-    }
-
-    function withdrawFees() onlyOwner external {
-        feesWithdrawable = 0;
-        USDC.transfer(msg.sender, feesWithdrawable);        
-    }
+    /*//////////////////////////////////////////////////
+                       VIEW FUNCTIONS
+    //////////////////////////////////////////////////*/
 
     /**
      * @dev Returns the current time.
@@ -273,7 +244,6 @@ contract BlueberryVesting is Ownable {
         _vestingSchedules = vestingSchedules[_user];
     }
 
-
     /**
      * @dev Checks the caller's vesting schedules to see if an update is required.
      * It should be noted that in order for the distribution to be equal to 60 days,
@@ -285,13 +255,29 @@ contract BlueberryVesting is Ownable {
         _currentEpoch = (block.timestamp - startTime) / epochDuration;
     }
 
-    /**
-     * @dev Checks the caller's vesting schedules to see if an update is required.
-     */
-    function updateVestingSchedules() public {
-        if (_vestingSchedules[msg.sender].lastUpdateEpoch < getCurrentEpoch()) {
-            return;
-        }
+    /*//////////////////////////////////////////////////
+                         MANAGEMENT
+    //////////////////////////////////////////////////*/
+
+    function withdrawFees() external onlyOwner() {
+        uint256 _balance = address(this).balance;
+        payable(msg.sender).transfer(_balance);
+    }
+
+    function changeTreasury(address _newTreasury) onlyOwner external {
+        treasury = _newTreasury;
+    }
+
+    function updateBTokenWhitelist(address _bToken, bool _status) onlyOwner public {
+        bTokenWhitelist[_bToken] = _status;
+    }
+
+    function pause() external onlyOwner() {
+        _pause();
+    }
+
+    function unpause() external onlyOwner() {
+        _unpause();
     }
 
     /**

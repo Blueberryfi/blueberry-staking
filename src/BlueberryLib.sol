@@ -9,17 +9,24 @@
 */
 pragma solidity 0.8.19;
 
-import { ERC721 } from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
-import './BlueberryLib.sol';
+error NotOwner();
+error AddressZero();
+error InvalidStartTime();
+error InvalidBalance();
+error InvalidDuration();
+error InvalidEpoch();
+error LockDropActive();
+error LockDropInactive();
+error NotKeeper();
+error InvalidIndex();
+error InvalidAmount();
+error InvalidbToken();
+error ZeroEmissionSchedules();
+error TransferFailed();
+error VestingNotCompleted();
+error InvalidBToken();
 
-contract bdBLB is ERC721, Ownable {
-    address public staking;
-    constructor(address _staking) ERC721("bdBLB", "bdBLB") {
-        if (_staking == address(0)){
-            revert AddressZero();
-        }
-        staking = _staking;
-        _mint(_staking, type(uint256).max);
-    }
+library StakingEvents {
+    event Staked(address indexed user, uint256 timestamp, address bToken, uint256 amount);
+    event Unstaked(address indexed user, uint256 timestamp, address bToken, uint256 amount);
 }
