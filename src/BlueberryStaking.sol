@@ -34,6 +34,10 @@ contract BlueberryStaking is Ownable, Pausable {
 
     event RewardAmountNotified(address[] indexed bTokens, uint256[] amounts, uint256 timestamp);
 
+    event Accelerated(address indexed user, uint256 unlockedAmount, uint256 accelerationFee, uint256 redistributedAmount);
+
+    event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
+
     /*//////////////////////////////////////////////////
                         VARIABLES
     //////////////////////////////////////////////////*/
@@ -45,8 +49,11 @@ contract BlueberryStaking is Ownable, Pausable {
     mapping(address => uint256) public rewardPerTokenStored;
     mapping(address => uint256) public lastUpdateTime;
     mapping(address => uint256) public rewardRate;
+    mapping(address => uint256) public lastClaimed;
 
     mapping(address => bool) public isBToken;
+
+    mapping(address => Vest[]) public vesting;
 
     mapping(address => mapping(address => uint256)) public balanceOf;
     mapping(address => mapping(address => uint256)) public rewards;
@@ -54,13 +61,25 @@ contract BlueberryStaking is Ownable, Pausable {
 
     uint256 public rewardDuration;
     uint256 public finishAt;
+    uint256 public vestLength;
+
+    /**
+     * @notice the length of an epoch in seconds
+     * @dev 14 days by default
+     */
+    uint256 public epochLength = 1_209_600;
+
+    struct Vest {
+        uint256 amount;
+        uint256 startTime;
+    }
  
     /**
     * @notice The constructor function, called when the contract is deployed
     * @param _bdBLB The token that will be used as rewards (bdBLB)
     * @param _bTokens An array of tokens that can be staked
     */
-    constructor(ERC20 _bdBLB, address[] memory _bTokens) Ownable() {
+    constructor(ERC20 _bdBLB, uint256 _rewardDuration, address[] memory _bTokens) Ownable() {
         if (address(_bdBLB) == address(0)){
             revert AddressZero();
         }
@@ -84,16 +103,29 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         totalBTokens = _bTokens.length;
+
+        require(_rewardDuration > 0, "Invalid reward duration");
+
+        rewardDuration = _rewardDuration;
+        finishAt = block.timestamp + _rewardDuration;
     }
 
     /*//////////////////////////////////////////////////
                      STAKING FUNCTIONS
     //////////////////////////////////////////////////*/
 
+    /**
+    * @notice updates the rewards for a given user and a given array of tokens
+    * @param _user The user to update the rewards for
+    * @param _bTokens An array of tokens to update the rewards for
+    */
     modifier updateRewards(address _user, address[] calldata _bTokens) {
         for (uint256 i; i < _bTokens.length;) {
-        
             address _bToken = _bTokens[i];
+
+            if (!isBToken[address(_bToken)]) {
+                revert InvalidBToken();
+            }
 
             rewardPerTokenStored[address(_bToken)] = rewardPerToken(address(bdBLB));
             lastUpdateTime[address(_bToken)] = lastTimeRewardApplicable();
@@ -120,17 +152,18 @@ contract BlueberryStaking is Ownable, Pausable {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
         for (uint256 i; i < _bTokens.length;) {
-            if (!isBToken[address(_bTokens[i])]) {
+            address _bToken = _bTokens[i];
+
+            if (!isBToken[address(_bToken)]) {
                 revert InvalidBToken();
             }
 
-            IERC20 _bToken = IERC20(_bTokens[i]);
             uint256 _amount = _amounts[i];
 
             balanceOf[msg.sender][address(_bToken)] += _amount;
             totalSupply[address(_bToken)] += _amount;
 
-            (bool success) = _bToken.transferFrom(msg.sender, address(this), _amount);
+            (bool success) = IERC20(_bToken).transferFrom(msg.sender, address(this), _amount);
 
             if (!success) {
                 revert TransferFailed();
@@ -154,11 +187,12 @@ contract BlueberryStaking is Ownable, Pausable {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
         for (uint256 i; i < _bTokens.length;) {
-            if (!isBToken[address(_bTokens[i])]) {
+            address _bToken = _bTokens[i];
+
+            if (!isBToken[address(_bToken)]) {
                 revert InvalidBToken();
             }
 
-            IERC20 _bToken = IERC20(_bTokens[i]);
             uint256 _amount = _amounts[i];
 
             balanceOf[msg.sender][address(_bToken)] -= _amount;
@@ -176,22 +210,33 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         emit Unstaked(msg.sender, _bTokens, _amounts, block.timestamp);
-    }
+    }    
+
+    /*//////////////////////////////////////////////////
+                     VESTING FUNCTIONS
+    //////////////////////////////////////////////////*/
 
     /**
-    * @notice Gets the rewards for the given bTokens for the caller
-    * @param _bTokens An array of the tokens to claim rewards for
+    * @notice starts the vesting process for a given array of tokens
+    * @param _bTokens An array of the tokens to start vesting for the caller
     */
-    function getReward(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
+    function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
+        require(canClaim(msg.sender), "Cannot claim yet");
+        lastClaimed[msg.sender] = block.timestamp;
+
         uint256 totalRewards;
         for (uint256 i; i < _bTokens.length;) {
+            if (!isBToken[address(_bTokens[i])]) {
+                revert InvalidBToken();
+            }
+
             IERC20 _bToken = IERC20(_bTokens[i]);
             uint256 reward = rewards[msg.sender][address(_bToken)];
-            totalRewards += reward;
 
             if (reward > 0) {
+                totalRewards += reward;
                 rewards[msg.sender][address(_bToken)] = 0;
-                bdBLB.transfer(msg.sender, reward);
+                vesting[msg.sender].push(Vest(block.timestamp, reward));
             }
 
             unchecked{
@@ -202,12 +247,56 @@ contract BlueberryStaking is Ownable, Pausable {
         emit Claimed(msg.sender, totalRewards, block.timestamp);
     }
 
+    /**
+    * @notice Claims the tokens that have completed their vesting schedule for the caller.
+    * @param _indexes The indexes of the vesting schedule to claim.
+    */
+    function completeVesting(uint256[] calldata _indexes) external whenNotPaused() {
+        require(vesting[msg.sender].length >= _indexes.length, "Invalid length");
+
+        Vest[] storage vests = vesting[msg.sender];
+
+
+        uint256 totalbdBLB;
+        for (uint256 i; i < _indexes.length;) {
+            Vest storage v = vests[_indexes[i]];
+
+            require(v.startTime >= block.timestamp + vestLength, "Vesting is not yet complete");
+
+            totalbdBLB += v.amount;
+            delete vests[_indexes[i]];
+
+            unchecked{
+                ++i;
+            }
+        }
+
+        if (totalbdBLB > 0) {
+            (bool success) = IERC20(address(bdBLB)).transfer(msg.sender, totalbdBLB);
+
+            if (!success) {
+                revert TransferFailed();
+            }
+        }
+
+        emit VestingCompleted(msg.sender, totalbdBLB, block.timestamp);
+    }
+
     /*//////////////////////////////////////////////////
                        VIEW FUNCTIONS
     //////////////////////////////////////////////////*/
 
     /**
-    * @notice returns the total amount of rewards for the given bToken
+    * @notice ensures the user can only claim once per epoch
+    * @param _user the user to check
+    */
+    function canClaim(address _user) public view returns (bool) {
+        uint256 currentEpoch = block.timestamp / epochLength;
+        return lastClaimed[_user] < currentEpoch;
+    }
+
+    /**
+    * @return returns the total amount of rewards for the given bToken
     */
     function rewardPerToken(address _bToken) public view returns (uint256) {
 
@@ -228,6 +317,9 @@ contract BlueberryStaking is Ownable, Pausable {
         earnedAmount += (balanceOf[_account][_bToken] * (rewardPerToken(_bToken) - userRewardPerTokenPaid[_account][_bToken])) / 1e18 + rewards[_account][_bToken];
     }
 
+    /**
+    * @return the timestamp of the last time rewards were updated
+    */
     function lastTimeRewardApplicable() public view returns (uint256) {
         if (block.timestamp > finishAt){
             return finishAt;
@@ -240,14 +332,27 @@ contract BlueberryStaking is Ownable, Pausable {
                          MANAGEMENT
     //////////////////////////////////////////////////*/
 
+    /**
+    * @notice Change the bdBLB token address (in case of migration)
+    */
     function changeBdBLB(address _bdBLB) external onlyOwner() {
         bdBLB = IERC20(_bdBLB);
     }
 
+    function changeEpochLength(uint256 _epochLength) external onlyOwner() {
+        epochLength = _epochLength;
+    }
+
+    /**
+    * @notice Pauses the contract
+    */
     function pause() external onlyOwner() {
         _pause();
     }
 
+    /**
+    * @notice Unpauses the contract
+    */
     function unpause() external onlyOwner() {
         _unpause();
     }
@@ -263,7 +368,7 @@ contract BlueberryStaking is Ownable, Pausable {
                 revert AddressZero();
             }
 
-            require(isBToken[_bTokens[i]], "Already a BToken");
+            require(isBToken[_bTokens[i]], "Already a bToken");
 
             isBToken[_bTokens[i]] = true;
             
@@ -342,11 +447,19 @@ contract BlueberryStaking is Ownable, Pausable {
     /**
     * @notice Called by the owner to change the reward duration in seconds
     * @dev This will not change the reward rate for any tokens
-    * @dev 
-    * @param _rewardDuration An array of the tokens to change the reward rate for
+    * @param _rewardDuration The new reward duration in seconds
     */
     function setRewardDuration(uint256 _rewardDuration) external onlyOwner() {
         rewardDuration = _rewardDuration;
+    }
+
+    /**
+    * @notice Called by the owner to change the vest length in seconds
+    * @dev Will effect all users who are vesting
+    * @param _vestLength The new vest length in seconds
+    */
+    function setVestLength(uint256 _vestLength) external onlyOwner() {
+        vestLength = _vestLength;
     }
 
     /**
