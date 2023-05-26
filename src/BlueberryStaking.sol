@@ -5,6 +5,7 @@ import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC
 import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
 import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
 import './BlueberryLib.sol';
+import './IBlueberryToken.sol';
 
 /**
  *  ██████╗ ██╗     ██╗   ██╗███████╗██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗
@@ -42,7 +43,7 @@ contract BlueberryStaking is Ownable, Pausable {
                         VARIABLES
     //////////////////////////////////////////////////*/
 
-    IERC20 public BLB;
+    IBlueberryToken public BLB;
     uint256 public totalBTokens;
 
     mapping(address => uint256) public totalSupply;
@@ -61,10 +62,10 @@ contract BlueberryStaking is Ownable, Pausable {
 
     uint256 public rewardDuration;
     uint256 public finishAt;
-    uint256 public vestLength;
+    uint256 public vestLength = 365 days;
     uint256 public launchTimestamp;
 
-    mapping(uint256 => Epoch[]) public epochs;
+    mapping(uint256 => Epoch) public epochs;
 
     /// @notice The precision used for ratio calculations.
     uint256 constant public RATIO_PRECISION = 1_000_000_000_000_000_000;
@@ -91,7 +92,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _BLB The token that will be used as rewards 
     * @param _bTokens An array of tokens that can be staked
     */
-    constructor(ERC20 _BLB, uint256 _rewardDuration, address[] memory _bTokens) Ownable() {
+    constructor(address _BLB, uint256 _rewardDuration, address[] memory _bTokens) Ownable() {
         if (address(_BLB) == address(0)){
             revert AddressZero();
         }
@@ -100,7 +101,7 @@ contract BlueberryStaking is Ownable, Pausable {
             revert AddressZero();
         }
 
-        BLB = _BLB;
+        BLB = IBlueberryToken(_BLB);
 
         for (uint256 i; i < _bTokens.length;) {
             if (_bTokens[i] == address(0)){
@@ -158,10 +159,10 @@ contract BlueberryStaking is Ownable, Pausable {
     /**
     * @notice stakes a given amount of each token
     * @dev The amount of tokens must be approved by the user before calling this function
-    * @param _amounts An array of the amounts of each token to stake
     * @param _bTokens An array of the tokens to stake
+    * @param _amounts An array of the amounts of each token to stake
     */
-    function stake(uint256[] calldata _amounts, address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
+    function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
         for (uint256 i; i < _bTokens.length;) {
@@ -236,14 +237,14 @@ contract BlueberryStaking is Ownable, Pausable {
         Vest[] storage vests = vesting[msg.sender];
 
         for (uint256 i; i < _vestIndexes.length;) {
-            Vest storage v = vests[_vestIndexes[i]];
+            Vest storage vest = vests[_vestIndexes[i]];
 
-            require(v[_vestIndexes[i]].amount > 0, "Nothing to update");
+            require(vest.amount > 0, "Nothing to update");
 
-            uint256 _vestEpoch = (v.startTime - launchTimestamp) / epochLength;
+            uint256 _vestEpoch = (vest.startTime - launchTimestamp) / epochLength;
 
             if (epochs[_vestEpoch].redistributedAmount > 0) {
-                v.amount = (v.amount * epochs[_vestEpoch].redistributedAmount) / epochs[_vestEpoch].totalAmount;
+                vest.amount = (vest.amount * epochs[_vestEpoch].redistributedAmount) / epochs[_vestEpoch].totalAmount;
             }
 
             unchecked{
@@ -259,7 +260,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _bTokens An array of the tokens to start vesting for the caller
     */
     function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
-        require(canClaim(msg.sender), "Cannot claim yet");
+        require(canClaim(msg.sender), "Already claimed this epoch");
         lastClaimed[msg.sender] = block.timestamp;
 
         uint256 totalRewards;
@@ -327,11 +328,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         if (totalbdBLB > 0) {
-            (bool success) = IERC20(address(BLB)).mint(msg.sender, totalbdBLB);
-
-            if (!success) {
-                revert TransferFailed();
-            }
+            BLB.mint(msg.sender, totalbdBLB);
         }
 
         emit VestingCompleted(msg.sender, totalbdBLB, block.timestamp);
@@ -349,19 +346,20 @@ contract BlueberryStaking is Ownable, Pausable {
      *   |          .
      * 0 +------+-----> 1 year
      */
-    function accelerateVesting(uint256[] calldata _vestIndexes) external payable whenNotPaused() updateVests(msg.sender, _vestIndexes) {
+    function accelerateVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
         // index must exist
         require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
 
         Vest[] storage vests = vesting[msg.sender];
 
-        uint256 etherRequired;
-        uint256 tokensToClaim;
+        uint256 totalbdBLB;
         uint256 totalRedistributedAmount;
         for (uint256 i; i < _vestIndexes.length;) {
             uint256 _vestIndex = _vestIndexes[i];
 
             Vest storage _vest = vests[_vestIndex];
+
+            require(_vest.amount > 0, "Nothing to accelerate");
 
             uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(msg.sender, _vestIndex);
             uint256 _totalFees = (_vest.amount * _earlyUnlockPenaltyRatio) / RATIO_PRECISION;
@@ -374,22 +372,20 @@ contract BlueberryStaking is Ownable, Pausable {
             totalRedistributedAmount += _redistributionAmount;
 
             // the remainder is withdrawable by the user
-            tokensToClaim += _vest.amount - _redistributionAmount / RATIO_PRECISION;
+            totalbdBLB += _vest.amount - _redistributionAmount / RATIO_PRECISION;
+
+            delete vests[_vestIndex];
 
             unchecked{
                 ++i;
             }
         }
 
-        if (tokensToClaim > 0) {
-                (bool success) = IERC20(address(BLB)).mint(msg.sender, tokensToClaim);
+        if (totalbdBLB > 0) {
+            BLB.mint(msg.sender, totalbdBLB);
+        }
 
-                if (!success) {
-                    revert TransferFailed();
-                }
-            }
-
-        emit Accelerated(msg.sender, tokensToClaim, totalRedistributedAmount);
+        emit Accelerated(msg.sender, totalbdBLB, totalRedistributedAmount);
     }
 
     /*//////////////////////////////////////////////////
@@ -408,6 +404,10 @@ contract BlueberryStaking is Ownable, Pausable {
 
     function currentEpoch() public view returns (uint256) {
         return (block.timestamp - launchTimestamp) / epochLength;
+    }
+
+    function getBLB() public view returns (address) {
+        return address(BLB);
     }
 
     /**
@@ -489,14 +489,16 @@ contract BlueberryStaking is Ownable, Pausable {
     /**
     * @notice Change the BLB token address (in case of migration)
     */
-    function changeBdBLB(address _BLB) external onlyOwner() {
-        BLB = IERC20(_BLB);
+    function changeBLB(address _BLB) external onlyOwner() {
+        require(_BLB != address(0), "AddressZero");
+        BLB = IBlueberryToken(_BLB);
     }
 
     /**
     * @notice Change the epoch length in seconds
     */
     function changeEpochLength(uint256 _epochLength) external onlyOwner() {
+        require(_epochLength > 0, "EpochLengthZero");
         epochLength = _epochLength;
     }
 
@@ -525,7 +527,7 @@ contract BlueberryStaking is Ownable, Pausable {
                 revert AddressZero();
             }
 
-            require(isBToken[_bTokens[i]], "Already a bToken");
+            require(!isBToken[_bTokens[i]], "Already a bToken");
 
             isBToken[_bTokens[i]] = true;
             
