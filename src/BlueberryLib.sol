@@ -25,8 +25,3 @@ error ZeroEmissionSchedules();
 error TransferFailed();
 error VestingNotCompleted();
 error InvalidBToken();
-
-library StakingEvents {
-    event Staked(address indexed user, uint256 timestamp, address bToken, uint256 amount);
-    event Unstaked(address indexed user, uint256 timestamp, address bToken, uint256 amount);
-}
