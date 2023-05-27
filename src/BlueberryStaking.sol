@@ -328,7 +328,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         if (totalbdBLB > 0) {
-            BLB.mint(msg.sender, totalbdBLB);
+            BLB.transfer(msg.sender, totalbdBLB);
         }
 
         emit VestingCompleted(msg.sender, totalbdBLB, block.timestamp);
@@ -382,7 +382,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         if (totalbdBLB > 0) {
-            BLB.mint(msg.sender, totalbdBLB);
+            BLB.transfer(msg.sender, totalbdBLB);
         }
 
         emit Accelerated(msg.sender, totalbdBLB, totalRedistributedAmount);
@@ -479,7 +479,7 @@ contract BlueberryStaking is Ownable, Pausable {
         uint256 vestEndTime = vestStartTime + vestLength;
 
         // Calculate the early unlock penalty ratio based on the time passed and total vesting period
-        penaltyRatio = (vestEndTime - block.timestamp) * 1e15 / vestLength;
+        penaltyRatio = (vestEndTime - block.timestamp) / vestLength ;
     }
 
     /*//////////////////////////////////////////////////
