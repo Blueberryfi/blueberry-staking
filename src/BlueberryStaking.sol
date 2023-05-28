@@ -582,20 +582,6 @@ contract BlueberryStaking is Ownable, Pausable {
     }
 
     /**
-    * @notice Pauses the contract
-    */
-    function pause() external onlyOwner() {
-        _pause();
-    }
-
-    /**
-    * @notice Unpauses the contract
-    */
-    function unpause() external onlyOwner() {
-        _unpause();
-    }
-
-    /**
     * @notice Adds the given tokens to the list of bTokens
     * @param _bTokens An array of the tokens to add
     */
@@ -738,6 +724,20 @@ contract BlueberryStaking is Ownable, Pausable {
         treasury = _treasury;
 
         emit TreasuryUpdated(_treasury, block.timestamp);
+    }
+
+        /**
+    * @notice Pauses the contract
+    */
+    function pause() external onlyOwner() {
+        _pause();
+    }
+
+    /**
+    * @notice Unpauses the contract
+    */
+    function unpause() external onlyOwner() {
+        _unpause();
     }
 
     /**
