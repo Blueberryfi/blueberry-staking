@@ -1,34 +1,25 @@
-# Bonded Blueberry ($bdBLB)
+## BlueberryStaking Smart Contract
+This is the README file for the BlueberryStaking smart contract, which implements a staking mechanism with vesting for bdBLB token distribution. The contract allows users to stake specific tokens and earn rewards in the form of BLB tokens. It also provides vesting functionality for the distributed rewards.
 
-Bonded Blueberry is the vesting rewards token, distributed every two weeks to those holding bTokens, the receipt token for lending on Blueberry markets.
+### Contract Details
+- Contract Name: BlueberryStaking
+- License: MIT
+- Solidity Version: 0.8.19
+- Author: haruxe
+- Description
+BlueberryStaking is a smart contract that facilitates staking of tokens and distribution of rewards in the form of BLB tokens. The contract supports multiple tokens that can be staked, and it includes vesting functionality for the distributed rewards. Users can stake tokens, earn rewards, unstake tokens, claim rewards, accelerate vesting, and complete vesting based on the rules defined in the contract.
 
-Bonded Blueberry is the vesting governance token. 1 $bdBLB is redeemable for 1 $BLB over the course of 1 year. However, this vesting concept differs from traditional vesting, which unlocks tokens over time.
+The contract is implemented using OpenZeppelin library contracts, including ERC20, Pausable, and Ownable.
 
-Instead, $bdBLB introduces Acceleration Fee Vesting.
+### Features
+The BlueberryStaking contract includes the following features:
 
-The Acceleration Fee is the price a $bdBLB holder must pay to the DAO treasury to have their vesting accelerated, unlocking tokens immediately. These fees are then used to purchase $BLB and provide $BLB-USDC liquidity, offsetting the effects of short-term liquidity providers. The acquired liquidity is sent to a public burn address.
-Claiming
+- Staking: Users can stake tokens by calling the stake function and providing the tokens and amounts they want to stake. The staked tokens are transferred to the contract.
 
-$bdBLB is distributed and claimable each Monday of every two weeks, called an “Epoch.”
+- Unstaking: Users can unstake tokens by calling the unstake function and providing the tokens and amounts they want to unstake. The unstaked tokens are transferred back to the user.
 
-## Acceleration Fee Mechanics
+- Rewards: Users can earn rewards by staking tokens. The rewards are calculated based on the staked tokens and the reward rate. Users can claim their rewards by calling the startVesting function.
 
-When a distribution occurs, the Initial Acceleration Fee is set automatically based on the price of the underlying BLB \* 0.7.
+- Vesting: The contract includes vesting functionality for the distributed rewards. Users can complete vesting for specific vesting schedules by calling the completeVesting function. They can also accelerate vesting by paying an acceleration fee using the accelerateVesting function.
 
-Over the 1-year vesting period, the Acceleration Fee decreases linearly, without regard to the underlying $BLB price.
-
-When an Acceleration is performed by paying the fee, a user receives 90% of the underlying BLB they have claim to. 10% is redistributed to other holders of that Epoch’s batch of bdBLB.
-
-### Rationale: This model disincentivizes short-term liquidity providers, rewarding long-term believers in the protocol, and builds long-term liquidity for the benefit of the entire ecosystem, while still allowing users to exit. Fees are taken by the DAO treasury and used to buy back and make liquidity for the token.
-
-Climbing FDV for Lockdrop
-
-A significant number of $bdBLB tokens will be distributed during the Lockdrop 60-day phase, where lenders lock liquidity in exchange for token rewards.
-
-The $bdBLB token and the $BLB token will not be live or transferable during this period. After 60 days, both will go live and become transferable.
-
-The Climbing FDV is a novel mechanic to reward those taking the most risk fairly. To align with the decreasing risk level, the FDV will increase every 15 days, 4 times total in the 60 days. The earlier you provide liquidity, the lower your acceleration fee will be at launch.
-
-To reiterate, this mechanism provides the lowest acceleration fees to the earliest liquidity providers, and allows all lockdrop lenders to receive tokens beneath the launch price of the market.
-
-Additionally, the DAO will distribute an airdrop based on user activity during this period. The airdrop will be awarded in regular $BLB governance tokens, with the goal to distribute governance power to users with the most skin in the game and most productive contributions to the protocol.
+- Management: The contract includes various management functions that can be called only by the contract owner. These functions allow the owner to change the reward rate, reward duration, vest length, add or remove supported tokens, change the BLB token address, pause or unpause the contract, and notify reward amounts.
