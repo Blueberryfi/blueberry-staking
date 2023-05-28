@@ -5,6 +5,7 @@ import "../lib/forge-std/src/Test.sol";
 import "../src/BlueberryStaking.sol";
 import "../src/BlueberryToken.sol";
 import "../src/MockbToken.sol";
+import "../src/MockUSDC.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking blueberryStaking;
@@ -13,7 +14,9 @@ contract BlueberryStakingTest is Test {
     IERC20 mockbToken2;
     IERC20 mockbToken3;
 
-    address public endUser = address(0x1);
+    IERC20 mockUSDC;
+
+    address public treasury = address(0x1);
 
     address[] public existingBTokens;
     
@@ -21,6 +24,8 @@ contract BlueberryStakingTest is Test {
         mockbToken1 = new MockbToken();
         mockbToken2 = new MockbToken();
         mockbToken3 = new MockbToken();
+
+        mockUSDC = new MockUSDC();
 
         blb = new BlueberryToken(address(this), address(this), block.timestamp + 30);
 
@@ -30,7 +35,7 @@ contract BlueberryStakingTest is Test {
         existingBTokens[1] = address(mockbToken2);
         existingBTokens[2] = address(mockbToken3);
 
-        blueberryStaking = new BlueberryStaking(address(blb), 1_209_600, existingBTokens);
+        blueberryStaking = new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
 
         blb.transfer(address(blueberryStaking), 1e27);
     }
@@ -170,14 +175,14 @@ contract BlueberryStakingTest is Test {
         uint256[] memory stakeAmounts = new uint256[](3);
 
         stakeAmounts[0] = 1e25;
-        stakeAmounts[1] = 1e25;
-        stakeAmounts[2] = 1e25;
+        stakeAmounts[1] = 0;
+        stakeAmounts[2] = 0;
 
-        blueberryStaking.notifyRewardAmount(existingBTokens, amounts);
+        blueberryStaking.notifyRewardAmount(existingBTokens, rewardAmounts);
 
-        mockbToken1.approve(address(blueberryStaking), amounts[0]);
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(existingBTokens, amounts);
+        blueberryStaking.stake(existingBTokens, stakeAmounts);
 
         // The epoch passes and it becomes claimable
         vm.warp(block.timestamp + 7 days);
@@ -242,6 +247,8 @@ contract BlueberryStakingTest is Test {
         indexes[1] = 1;
         indexes[2] = 2;
 
+        mockUSDC.approve(address(blueberryStaking), blueberryStaking.getAccelerationFeeUSDC(address(this), indexes[0]));
+
         blueberryStaking.accelerateVesting(indexes);
 
         console.log("BLB balance after acceleration: %s", blb.balanceOf(address(this)));
@@ -262,30 +269,71 @@ contract BlueberryStakingTest is Test {
         blueberryStaking.stake(bTokens, amounts);
 
         // The epoch passes and it becomes claimable
-        vm.warp(block.timestamp + 14 days);
+        skip(block.timestamp + 14 days);
 
         blueberryStaking.startVesting(bTokens);
 
         console.log("Unlock penalty ratio right away: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
 
-        // 10 days pass
-        vm.warp(block.timestamp + 10 days);
+        skip(10 days);
 
         console.log("Unlock penalty ratio after 10 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
 
-        // 20 days pass
-        vm.warp(block.timestamp + 10 days);
+        skip(10 days);
 
         console.log("Unlock penalty ratio after 20 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
 
-        // 30 days pass
-        vm.warp(block.timestamp + 10 days);
+        skip(10 days);
 
         console.log("Unlock penalty ratio after 30 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
 
-        // 1/2 year passes
-        vm.warp(block.timestamp + 365 days);
+        skip(334 days);
 
-        console.log("Unlock penalty ratio after 1/2 year: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
+        console.log("Unlock penalty ratio after 364 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
+    }
+
+    function testGetAcclerationFee() public {
+        uint256[] memory rewardAmounts = new uint256[](1);
+
+        rewardAmounts[0] = 1e25;
+
+        uint256[] memory stakeAmounts = new uint256[](1);
+
+        stakeAmounts[0] = 1e19;
+
+        address[] memory bTokens = new address[](1);
+        bTokens[0] = address(mockbToken1);
+
+        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        // The epoch passes and it becomes claimable
+        skip(block.timestamp + 14 days);
+
+        blueberryStaking.startVesting(bTokens);
+
+        console.log("Acceleration fee right away: %s", blueberryStaking.getAccelerationFeeUSDC(address(this), 0));
+
+        skip(10 days);
+
+        console.log("Acceleration fee after 10 days: %s", blueberryStaking.getAccelerationFeeUSDC(address(this), 0));
+
+        skip(10 days);
+
+        uint256[] memory indexes = new uint256[](1);
+        indexes[0] = 0;
+
+        blueberryStaking.accelerateVesting(indexes);
+    }
+
+    function testScenarios() public {
+        // 1. Early Acceleration (Early unlock penalty at 30%)
+
+
+        // 2. Mid Acceleration (Early unlock penalty at 15%)
+        // 3. Late Acceleration (Early unlock penalty at 5%)
     }
 }
