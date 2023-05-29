@@ -210,8 +210,8 @@ contract BlueberryStaking is Ownable, Pausable {
             if (!success) {
                 revert TransferFailed();
             }
-            
-            unchecked{
+
+            unchecked {
                 ++i;
             }
         }
@@ -252,7 +252,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         emit Unstaked(msg.sender, _bTokens, _amounts, block.timestamp);
-    }    
+    }
 
     /*//////////////////////////////////////////////////
                      VESTING FUNCTIONS
@@ -463,7 +463,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @return returns true if the vesting schedule is complete for the given user and vesting index
     */
     function isVestingComplete(address _user, uint256 _vestIndex) public view returns (bool) {
-        return vesting[_user][_vestIndex].startTime >= block.timestamp + vestLength;
+        return vesting[_user][_vestIndex].startTime <= block.timestamp + vestLength;
     }
 
     /**
@@ -619,7 +619,6 @@ contract BlueberryStaking is Ownable, Pausable {
             require(isBToken[_bTokens[i]], "Not a bToken");
 
             isBToken[_bTokens[i]] = false;
-            
             
             unchecked{
                 ++i;

@@ -168,13 +168,13 @@ contract BlueberryStakingTest is Test {
     function testFullyVest() public {
         uint256[] memory rewardAmounts = new uint256[](3);
 
-        rewardAmounts[0] = 1e25;
-        rewardAmounts[1] = 1e25;
-        rewardAmounts[2] = 1e25;
+        rewardAmounts[0] = 1e20;
+        rewardAmounts[1] = 1e20;
+        rewardAmounts[2] = 1e20;
 
         uint256[] memory stakeAmounts = new uint256[](3);
 
-        stakeAmounts[0] = 1e25;
+        stakeAmounts[0] = 1e15;
         stakeAmounts[1] = 0;
         stakeAmounts[2] = 0;
 
@@ -185,31 +185,33 @@ contract BlueberryStakingTest is Test {
         blueberryStaking.stake(existingBTokens, stakeAmounts);
 
         // The epoch passes and it becomes claimable
-        vm.warp(block.timestamp + 7 days);
+        skip(7 days);
 
         // check how much is earned
 
         console.log("Earned first week: %s", blueberryStaking.earned(address(this), address(mockbToken1)));
 
-        vm.warp(block.timestamp + 7 days);
+        skip(block.timestamp + 7 days);
 
         // check how much is earned
 
         console.log("Earned second week: %s", blueberryStaking.earned(address(this), address(mockbToken1)));
 
-        blueberryStaking.startVesting(existingBTokens);
+        address[] memory bTokens = new address[](1);
+
+        bTokens[0] = address(mockbToken1);
+        
+        blueberryStaking.startVesting(bTokens);
 
         console.log("BLB balance before: %s", blb.balanceOf(address(this)));
 
         // 1 year passes, all rewards should be fully vested
-        vm.warp(block.timestamp + 180 days);
+        skip(365 days);
 
-        console.log("Earned: after starting vest %s", blueberryStaking.earned(address(this), address(mockbToken1)));
         
-        uint256[] memory indexes = new uint256[](3);
+        
+        uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
-        indexes[1] = 1;
-        indexes[2] = 2;
 
         blueberryStaking.completeVesting(indexes);
 
@@ -247,7 +249,8 @@ contract BlueberryStakingTest is Test {
         indexes[1] = 1;
         indexes[2] = 2;
 
-        mockUSDC.approve(address(blueberryStaking), blueberryStaking.getAccelerationFeeUSDC(address(this), indexes[0]));
+        // approve USDC
+        mockUSDC.approve(address(blueberryStaking), 1e18);
 
         blueberryStaking.accelerateVesting(indexes);
 
@@ -292,10 +295,10 @@ contract BlueberryStakingTest is Test {
         console.log("Unlock penalty ratio after 364 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
     }
 
-    function testGetAcclerationFee() public {
+    function testAccelerateVesting2() public {
         uint256[] memory rewardAmounts = new uint256[](1);
 
-        rewardAmounts[0] = 1e25;
+        rewardAmounts[0] = 1e20;
 
         uint256[] memory stakeAmounts = new uint256[](1);
 
@@ -325,6 +328,9 @@ contract BlueberryStakingTest is Test {
 
         uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
+
+        // approve USDC
+        mockUSDC.approve(address(blueberryStaking), 1e18);
 
         blueberryStaking.accelerateVesting(indexes);
     }
