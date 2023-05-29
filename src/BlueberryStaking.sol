@@ -4,6 +4,13 @@ pragma solidity 0.8.19;
 import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
 import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
+import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import '../lib/v3-core/contracts/libraries/TickMath.sol';
+import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "../lib/v3-periphery/contracts/libraries/PoolAddress.sol";
+import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
+import '../lib/v3-core/contracts/libraries/FullMath.sol';
+import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
 import './BlueberryLib.sol';
 import './IBlueberryToken.sol';
 
@@ -60,6 +67,10 @@ contract BlueberryStaking is Ownable, Pausable {
     IBlueberryToken public blb;
     IERC20 public usdc;
     address public treasury;
+
+    address public uniswapV3Pool;
+    address public uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+    uint32 public observationPeriod = 3600;
 
     uint256 public totalBTokens;
 
@@ -318,8 +329,8 @@ contract BlueberryStaking is Ownable, Pausable {
                 }
                 // month 3+ 
                 else {
-                    // @note NEEDS TO BE UPDATED TO USE UNISWAP V3 TWAP PRICE
-                    // _priceUnderlying = IUniswapV2Pair(bdblb).price0CumulativeLast() / 1e6;
+                    // gets the price of BLB in USD averaged over the last hour
+                    _priceUnderlying = fetchTWAP(observationPeriod);
                 }
 
                 vesting[msg.sender].push(Vest(reward, block.timestamp, _priceUnderlying));
@@ -436,6 +447,73 @@ contract BlueberryStaking is Ownable, Pausable {
     /*//////////////////////////////////////////////////
                        VIEW FUNCTIONS
     //////////////////////////////////////////////////*/
+
+    /**
+     * @notice gets the TWAP price for BLB in USDC
+     * @param _secondsInPast The amount of time in the past to get the TWAP for
+     * @return The TWAP price
+     */
+    function fetchTWAP(uint32 _secondsInPast) public view returns (uint256) {
+        IUniswapV3Pool _pool;
+        if (uniswapV3Pool != address(0)){
+            _pool = IUniswapV3Pool(uniswapV3Pool);
+        } else {
+            _pool = IUniswapV3Pool(_getExpectedPoolAddress(address(blb), address(usdc), 3000));
+        }
+
+        // max 5 days
+        require(_secondsInPast <= 432_000, "Pool does not have requested observation");
+
+        uint32[] memory _secondsArray = new uint32[](2);
+
+        _secondsArray[0] = _secondsInPast;
+        _secondsArray[1] = 0;
+
+        (int56[] memory tickCumulatives ,) = _pool.observe(_secondsArray);
+
+        int56 _tickDifference = tickCumulatives[1] - tickCumulatives[0];
+        int56 _timeDifference = int32(_secondsInPast);
+
+        int24 _twapTick = int24(_tickDifference / _timeDifference);
+
+        uint160 _sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_twapTick);
+
+        // Decode the square root price
+        uint256 _priceX96 = FullMath.mulDiv(_sqrtPriceX96, _sqrtPriceX96, FixedPoint96.Q96);
+
+        uint256 _decimalsBLB = 1e18;
+        uint256 _decimalsUSDC = _usdcDecimals;
+
+        // Adjust for decimals
+        if (_decimalsBLB > _decimalsUSDC) {
+            _priceX96 /= 10 ** (_decimalsBLB - _decimalsUSDC);
+        } else if (_decimalsUSDC > _decimalsBLB) {
+           _priceX96 *= 10 ** (_decimalsUSDC - _decimalsBLB);
+        }
+
+        // Now priceX96 is the price of blb in terms of usdc, multiplied by 2^96.
+        // To convert this to a human-readable format, you can divide by 2^96:
+
+        uint256 _price = _priceX96 / 2**96;
+
+        // Now 'price' is the price of blb in terms of usdc, in the correct decimal places.
+        return _price;
+    }
+
+    /**
+    * @notice gets the expected pool address for the given tokens
+    * @param tokenA the first token in the pair
+    * @param tokenB the second token in the pair
+    * @return returns the pool address
+    */
+    function _getExpectedPoolAddress(address tokenA, address tokenB, uint24 fee) internal view returns (address) {
+        // PoolAddress.compute requires tokens to be passed in sorted order
+        (tokenA, tokenB) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+
+        PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(tokenA, tokenB, fee);
+
+        return PoolAddress.computeAddress(address(uniswapV3Factory), poolKey);
+    }
 
     /**
     * @notice ensures the user can only claim rewards once per epoch
@@ -725,7 +803,24 @@ contract BlueberryStaking is Ownable, Pausable {
         emit TreasuryUpdated(_treasury, block.timestamp);
     }
 
-        /**
+    /**
+    * @notice Changes the information for the uniswap pool to fetch the price of BLB
+    * @param _uniswapPool The new address of the uniswap pool
+    * @param _uniswapFactory The new address of the uniswap factory
+    * @param _observationPeriod The new observation period for the uniswap pool
+    */
+    function changeUniswapInformation(address _uniswapPool, address _uniswapFactory, uint32 _observationPeriod) external onlyOwner() {
+        if (_uniswapPool == address(0) || _uniswapFactory == address(0)){
+            revert AddressZero();
+        }
+        require(_observationPeriod > 0, "Invalid observation time");
+
+        uniswapV3Pool = _uniswapPool;
+        uniswapV3Factory = _uniswapFactory;
+        observationPeriod = _observationPeriod;
+    }
+
+    /**
     * @notice Pauses the contract
     */
     function pause() external onlyOwner() {
