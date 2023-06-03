@@ -324,7 +324,7 @@ contract BlueberryStaking is Ownable, Pausable {
                     _priceUnderlying = .04e18;
                 }
                 // month 2: $0.08 / blb
-                else if (_month <= 2) {
+                else if (_month <= 2 || uniswapV3Pool == address(0)) {
                     _priceUnderlying = .08e18;
                 }
                 // month 3+ 
@@ -388,6 +388,9 @@ contract BlueberryStaking is Ownable, Pausable {
     function accelerateVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
         // index must exist
         require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
+
+        // lockdrop period must be complete i.e 2 months
+        require(block.timestamp > deployedAt + 5_259_492, "Lockdrop period not complete");
 
         Vest[] storage vests = vesting[msg.sender];
 
@@ -454,12 +457,7 @@ contract BlueberryStaking is Ownable, Pausable {
      * @return The TWAP price
      */
     function fetchTWAP(uint32 _secondsInPast) public view returns (uint256) {
-        IUniswapV3Pool _pool;
-        if (uniswapV3Pool != address(0)){
-            _pool = IUniswapV3Pool(uniswapV3Pool);
-        } else {
-            _pool = IUniswapV3Pool(_getExpectedPoolAddress(address(blb), address(usdc), 3000));
-        }
+        IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
 
         // max 5 days
         require(_secondsInPast <= 432_000, "Pool does not have requested observation");
