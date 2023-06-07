@@ -7,7 +7,6 @@ import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable
 import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '../lib/v3-core/contracts/libraries/TickMath.sol';
 import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "../lib/v3-periphery/contracts/libraries/PoolAddress.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 import '../lib/v3-core/contracts/libraries/FullMath.sol';
 import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
@@ -496,21 +495,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
         // Now 'price' is the price of blb in terms of usdc, in the correct decimal places.
         return _price;
-    }
-
-    /**
-    * @notice gets the expected pool address for the given tokens
-    * @param tokenA the first token in the pair
-    * @param tokenB the second token in the pair
-    * @return returns the pool address
-    */
-    function _getExpectedPoolAddress(address tokenA, address tokenB, uint24 fee) internal view returns (address) {
-        // PoolAddress.compute requires tokens to be passed in sorted order
-        (tokenA, tokenB) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-
-        PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(tokenA, tokenB, fee);
-
-        return PoolAddress.computeAddress(address(uniswapV3Factory), poolKey);
     }
 
     /**
