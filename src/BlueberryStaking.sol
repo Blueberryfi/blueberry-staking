@@ -1,4 +1,13 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
+/*
+██████╗ ██╗     ██╗   ██╗███████╗██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗
+██╔══██╗██║     ██║   ██║██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝
+██████╔╝██║     ██║   ██║█████╗  ██████╔╝█████╗  ██████╔╝██████╔╝ ╚████╔╝
+██╔══██╗██║     ██║   ██║██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗██╔══██╗  ╚██╔╝
+██████╔╝███████╗╚██████╔╝███████╗██████╔╝███████╗██║  ██║██║  ██║   ██║
+╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+*/
+
 pragma solidity 0.8.19;
 
 import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
@@ -14,14 +23,8 @@ import './BlueberryLib.sol';
 import './IBlueberryToken.sol';
 
 /**
- *  ██████╗ ██╗     ██╗   ██╗███████╗██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗
- *  ██╔══██╗██║     ██║   ██║██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝
- *  ██████╔╝██║     ██║   ██║█████╗  ██████╔╝█████╗  ██████╔╝██████╔╝ ╚████╔╝
- *  ██╔══██╗██║     ██║   ██║██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗██╔══██╗  ╚██╔╝
- *  ██████╔╝███████╗╚██████╔╝███████╗██████╔╝███████╗██║  ██║██║  ██║   ██║
- *  ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
  * @title Blueberry's staking contract with vesting for bdblb distribution
- * @author haruxe
+ * @author Blueberry protocol
  */
 contract BlueberryStaking is Ownable, Pausable {
 
@@ -122,11 +125,11 @@ contract BlueberryStaking is Ownable, Pausable {
  
     /**
     * @notice The constructor function, called when the contract is deployed
-    * @param _blb The token that will be used as rewards 
-    * @param _bTokens An array of the bTokens that can be staked
-    * @param _rewardDuration The duration of the reward period
+    * @param _blb The token that will be used as rewards
     * @param _usdc The usdc token address
-    * @param _treasury The treasury address
+    * @param _treasury The treasury address 
+    * @param _rewardDuration The duration of the reward period
+    * @param _bTokens An array of the bTokens that can be staked
     */
     constructor(address _blb, address _usdc, address _treasury, uint256 _rewardDuration, address[] memory _bTokens) Ownable() {
         if (_blb == address(0) || _usdc == address(0) || _treasury == address(0)){
