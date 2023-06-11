@@ -6,7 +6,7 @@ import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract MockUSDC is ERC20, Ownable {
 
-    constructor() ERC20("MockUSDC", "MUSDC") {
+    constructor() ERC20("MockUSDC", "MUSDC") Ownable(msg.sender) {
         _mint(msg.sender, 1000 * 10 ** decimals());
     }
 

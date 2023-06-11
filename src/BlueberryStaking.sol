@@ -131,7 +131,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _rewardDuration The duration of the reward period
     * @param _bTokens An array of the bTokens that can be staked
     */
-    constructor(address _blb, address _usdc, address _treasury, uint256 _rewardDuration, address[] memory _bTokens) Ownable() {
+    constructor(address _blb, address _usdc, address _treasury, uint256 _rewardDuration, address[] memory _bTokens) Ownable(msg.sender) {
         if (_blb == address(0) || _usdc == address(0) || _treasury == address(0)){
             revert AddressZero();
         }

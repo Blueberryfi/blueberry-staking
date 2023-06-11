@@ -5,7 +5,7 @@ import "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract MockbToken is ERC20, Ownable {
-    constructor() ERC20("MockbToken", "MBT") {
+    constructor() ERC20("MockbToken", "MBT") Ownable(msg.sender) {
         _mint(msg.sender, 1000 * 10 ** decimals());
     }
 
