@@ -317,23 +317,8 @@ contract BlueberryStaking is Ownable, Pausable {
                 totalRewards += reward;
                 rewards[msg.sender][address(_bToken)] = 0;
 
-                // during the lockdrop period the underlying blb token price is locked
-                uint256 _month = (block.timestamp - deployedAt) / 30 days;
-                uint256 _priceUnderlying;
-
                 // month 1: $0.04 / blb
-                if (_month <= 1){
-                    _priceUnderlying = .04e18;
-                }
-                // month 2: $0.08 / blb
-                else if (_month <= 2 || uniswapV3Pool == address(0)) {
-                    _priceUnderlying = .08e18;
-                }
-                // month 3+ 
-                else {
-                    // gets the price of BLB in USD averaged over the last hour
-                    _priceUnderlying = fetchTWAP(observationPeriod);
-                }
+                uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(Vest(reward, block.timestamp, _priceUnderlying));
             }
@@ -498,6 +483,28 @@ contract BlueberryStaking is Ownable, Pausable {
 
         // Now 'price' is the price of blb in terms of usdc, in the correct decimal places.
         return _price;
+    }
+
+    /**
+     * @notice gets the current price for BLB in USDC
+     * @return _price The current price
+     */
+    function getPrice() public view returns (uint256 _price) {
+        // during the lockdrop period the underlying blb token price is locked
+        uint256 _month = (block.timestamp - deployedAt) / 30 days;
+
+        if (_month <= 1){
+            _price = .04e18;
+        }
+        // month 2: $0.08 / blb
+        else if (_month <= 2 || uniswapV3Pool == address(0)) {
+            _price = .08e18;
+        }
+        // month 3+ 
+        else {
+            // gets the price of BLB in USD averaged over the last hour
+            _price = fetchTWAP(observationPeriod);
+        }
     }
 
     /**
