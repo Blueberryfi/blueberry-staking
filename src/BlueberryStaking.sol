@@ -80,7 +80,7 @@ contract BlueberryStaking is Ownable, Pausable {
     mapping(address => uint256) public rewardPerTokenStored;
     mapping(address => uint256) public lastUpdateTime;
     mapping(address => uint256) public rewardRate;
-    mapping(address => uint256) public lastClaimed;
+    mapping(address => uint256) public lastClaimedEpoch;
 
     mapping(address => bool) public isBToken;
 
@@ -302,7 +302,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(canClaim(msg.sender), "Already claimed this epoch");
-        lastClaimed[msg.sender] = block.timestamp;
+        lastClaimedEpoch[msg.sender] = currentEpoch();
 
         uint256 totalRewards;
         for (uint256 i; i < _bTokens.length;) {
@@ -514,7 +514,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function canClaim(address _user) public view returns (bool) {
         uint256 _currentEpoch = currentEpoch();
-        return lastClaimed[_user] < _currentEpoch;
+        return lastClaimedEpoch[_user] < _currentEpoch;
     }
 
     function currentEpoch() public view returns (uint256) {
@@ -533,7 +533,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @return returns true if the vesting schedule is complete for the given user and vesting index
     */
     function isVestingComplete(address _user, uint256 _vestIndex) public view returns (bool) {
-        return vesting[_user][_vestIndex].startTime <= block.timestamp + vestLength;
+        return vesting[_user][_vestIndex].startTime + vestLength <= block.timestamp;
     }
 
     /**
