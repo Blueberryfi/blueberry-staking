@@ -119,7 +119,6 @@ contract BlueberryStaking is Ownable, Pausable {
     }
 
     struct Epoch {
-        uint256 totalAmount;
         uint256 redistributedAmount;
     }
  
@@ -285,7 +284,7 @@ contract BlueberryStaking is Ownable, Pausable {
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
             if (epochs[_vestEpoch].redistributedAmount > 0) {
-                vest.amount = (vest.amount * epochs[_vestEpoch].redistributedAmount) / epochs[_vestEpoch].totalAmount;
+                vest.amount = (vest.amount * epochs[_vestEpoch].redistributedAmount) / epochs[_vestEpoch].redistributedAmount;
             }
 
             unchecked{
