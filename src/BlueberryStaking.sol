@@ -465,7 +465,7 @@ contract BlueberryStaking is Ownable, Pausable {
         // Decode the square root price
         uint256 _priceX96 = FullMath.mulDiv(_sqrtPriceX96, _sqrtPriceX96, FixedPoint96.Q96);
 
-        uint256 _decimalsBLB = 1e18;
+        uint256 _decimalsBLB = 18;
         uint256 _decimalsUSDC = _usdcDecimals;
 
         // Adjust for decimals
