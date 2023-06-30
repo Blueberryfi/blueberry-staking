@@ -141,6 +141,47 @@ contract BlueberryStakingTest is Test {
         assertEq(blueberryStaking.balanceOf(address(this), address(mockbToken3)), 1e16 * 4);
     }
 
+    function testAccelerateAccuracy() public {
+        uint256[] memory rewardAmounts = new uint256[](1);
+
+        rewardAmounts[0] = 1e18 * 1_000;
+
+        uint256[] memory stakeAmounts = new uint256[](1);
+
+        stakeAmounts[0] = 1e18 * 5_000;
+
+        address[] memory bTokens = new address[](1);
+        bTokens[0] = address(mockbToken1);
+
+        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        // The epoch passes and it becomes claimable
+        skip(7 days);
+
+        blueberryStaking.startVesting(existingBTokens);
+
+        console.log("Penalty ratio right away: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
+
+        skip((365 days) / 2);
+
+        console.log("Penalty ratio at 6 months: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
+
+        uint256[] memory indexes = new uint256[](1);
+        indexes[0] = 0;
+
+        uint256 amountOwed = blueberryStaking.getAccelerationFeeUSDC(address(this), 0);
+
+        console.log("Amount owed in USDC: %s", amountOwed);
+
+        mockbToken1.approve(address(blueberryStaking), amountOwed);
+
+        blueberryStaking.accelerateVesting(indexes);
+    }
+
     function testUnstake() public {
         uint256[] memory amounts = new uint256[](3);
 
@@ -293,46 +334,6 @@ contract BlueberryStakingTest is Test {
         skip(334 days);
 
         console.log("Unlock penalty ratio after 364 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
-    }
-
-    function testAccelerateVesting2() public {
-        uint256[] memory rewardAmounts = new uint256[](1);
-
-        rewardAmounts[0] = 1e20;
-
-        uint256[] memory stakeAmounts = new uint256[](1);
-
-        stakeAmounts[0] = 1e19;
-
-        address[] memory bTokens = new address[](1);
-        bTokens[0] = address(mockbToken1);
-
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
-
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-
-        blueberryStaking.stake(bTokens, stakeAmounts);
-
-        // The epoch passes and it becomes claimable
-        skip(block.timestamp + 14 days);
-
-        blueberryStaking.startVesting(bTokens);
-
-        console.log("Acceleration fee right away: %s", blueberryStaking.getAccelerationFeeUSDC(address(this), 0));
-
-        skip(10 days);
-
-        console.log("Acceleration fee after 10 days: %s", blueberryStaking.getAccelerationFeeUSDC(address(this), 0));
-
-        skip(10 days);
-
-        uint256[] memory indexes = new uint256[](1);
-        indexes[0] = 0;
-
-        // approve USDC
-        mockUSDC.approve(address(blueberryStaking), 1e18);
-
-        blueberryStaking.accelerateVesting(indexes);
     }
 
     function testScenarios() public {

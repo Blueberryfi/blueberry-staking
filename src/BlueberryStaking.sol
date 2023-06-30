@@ -388,9 +388,13 @@ contract BlueberryStaking is Ownable, Pausable {
             Vest storage _vest = vests[_vestIndex];
             uint256 _vestAmount = _vest.amount;
 
-            require(_vestAmount > 0, "Nothing to accelerate");
+            require(_vestAmount > 0, "No BLB to accelerate");
 
             uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(msg.sender, _vestIndex);
+
+            if (_earlyUnlockPenaltyRatio == 0){
+                revert("Vest complete, nothing to accelerate");
+            }
 
             // calculate acceleration fee and log it to ensure eth value is sent
             uint256 _accelerationFee = getAccelerationFeeUSDC(msg.sender, _vestIndex);
@@ -513,7 +517,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function canClaim(address _user) public view returns (bool) {
         uint256 _currentEpoch = currentEpoch();
-        return lastClaimedEpoch[_user] < _currentEpoch;
+        return lastClaimedEpoch[_user] <= _currentEpoch;
     }
 
     function currentEpoch() public view returns (uint256) {
@@ -590,7 +594,7 @@ contract BlueberryStaking is Ownable, Pausable {
      * This is done by calculating the ratio of the time that has passed since the start of the vesting period to the total vesting period.
      * @param _user The user's address.
      * @param _vestingScheduleIndex The index of the vesting schedule.
-     * @return penaltyRatio The current unlock penalty ratio multiplied by 1e15 for precision.
+     * @return penaltyRatio The current unlock penalty ratio multiplied by 1e15 for precision. Will return 0 on completion of the vesting period.
      */
     function getEarlyUnlockPenaltyRatio(address _user, uint256 _vestingScheduleIndex) public view returns (uint256 penaltyRatio){
         uint256 _vestStartTime = vesting[_user][_vestingScheduleIndex].startTime;
@@ -600,15 +604,15 @@ contract BlueberryStaking is Ownable, Pausable {
         
         // If the vesting period has occured the same block, the penalty ratio is 100% of the base penalty ratio
         if (_vestTimeElapsed <= 0) {
-            penaltyRatio = basePenaltyRatioPercent * 1e15;
+            penaltyRatio = basePenaltyRatioPercent * 1e16;
         }
         // If the vesting period is mid-acceleration, calculate the penalty ratio based on the time passed
         else if (_vestTimeElapsed < vestLength){
             penaltyRatio = (vestLength - _vestTimeElapsed) * 1e15 / vestLength * basePenaltyRatioPercent;
         }
-        // If the vesting period is over, the user cannot acclereate and must claim their completed vest
+        // If the vesting period is over, return 0
         else {
-            revert("Vest is already complete.");
+            return 0;
         }
     }
 
