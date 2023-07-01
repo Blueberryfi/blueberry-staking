@@ -44,7 +44,7 @@ contract BlueberryStaking is Ownable, Pausable {
 
     event RewardAmountNotified(address[] indexed bTokens, uint256[] amounts, uint256 timestamp);
 
-    event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedAmount);
+    event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
 
     event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
 
@@ -119,7 +119,8 @@ contract BlueberryStaking is Ownable, Pausable {
     }
 
     struct Epoch {
-        uint256 redistributedAmount;
+        uint256 redistributedBLB;
+        uint256 totalBLB;
     }
  
     /**
@@ -283,8 +284,8 @@ contract BlueberryStaking is Ownable, Pausable {
 
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
-            if (epochs[_vestEpoch].redistributedAmount > 0) {
-                vest.amount = (vest.amount * epochs[_vestEpoch].redistributedAmount) / epochs[_vestEpoch].redistributedAmount;
+            if (epochs[_vestEpoch].redistributedBLB > 0) {
+                vest.amount = (vest.amount * epochs[_vestEpoch].redistributedBLB) / epochs[_vestEpoch].totalBLB;
             }
 
             unchecked{
@@ -301,7 +302,9 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(canClaim(msg.sender), "Already claimed this epoch");
-        lastClaimedEpoch[msg.sender] = currentEpoch();
+        uint256 _currentEpoch = currentEpoch();
+
+        lastClaimedEpoch[msg.sender] = _currentEpoch;
 
         uint256 totalRewards;
         for (uint256 i; i < _bTokens.length;) {
@@ -327,6 +330,8 @@ contract BlueberryStaking is Ownable, Pausable {
             }
         }
 
+        epochs[_currentEpoch].totalBLB += totalRewards;
+
         emit Claimed(msg.sender, totalRewards, block.timestamp);
     }
 
@@ -337,6 +342,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function completeVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
 
         Vest[] storage vests = vesting[msg.sender];
+        require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
 
         uint256 totalbdblb;
         for (uint256 i; i < _vestIndexes.length;) {
@@ -405,7 +411,7 @@ contract BlueberryStaking is Ownable, Pausable {
             
             // get current epoch and redistribute to it
             uint256 _epoch = currentEpoch();
-            epochs[_epoch].redistributedAmount += _redistributionAmount;
+            epochs[_epoch].redistributedBLB += _redistributionAmount;
 
             // log it for the event
             totalRedistributedAmount += _redistributionAmount;
@@ -561,7 +567,11 @@ contract BlueberryStaking is Ownable, Pausable {
     * @return earnedAmount the amount of rewards the given user has earned for the given bToken
     */
     function earned(address _account, address _bToken) public view returns (uint256 earnedAmount) {
-        earnedAmount = (balanceOf[_account][_bToken] * (rewardPerToken(_bToken) - userRewardPerTokenPaid[_account][_bToken])) / 1e18 + rewards[_account][_bToken];
+        uint256 _balance = balanceOf[_account][_bToken];
+        uint256 _rewardStored = rewardPerTokenStored[_bToken];
+        uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
+        earnedAmount = (_balance * (_rewardStored - _rewardPaid)) / 1e18;
+    
     }
 
     /**
@@ -712,10 +722,6 @@ contract BlueberryStaking is Ownable, Pausable {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
         for (uint256 i; i < _bTokens.length;) {
-            if (!isBToken[address(_bTokens[i])]) {
-                revert InvalidBToken();
-            }
-
             address _bToken = _bTokens[i];
             uint256 _amount = _amounts[i];
 
