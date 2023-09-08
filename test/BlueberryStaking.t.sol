@@ -249,8 +249,6 @@ contract BlueberryStakingTest is Test {
         // 1 year passes, all rewards should be fully vested
         skip(365 days);
 
-        
-        
         uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
 
@@ -334,13 +332,5 @@ contract BlueberryStakingTest is Test {
         skip(334 days);
 
         console.log("Unlock penalty ratio after 364 days: %s", blueberryStaking.getEarlyUnlockPenaltyRatio(address(this), 0));
-    }
-
-    function testScenarios() public {
-        // 1. Early Acceleration (Early unlock penalty at 30%)
-
-
-        // 2. Mid Acceleration (Early unlock penalty at 15%)
-        // 3. Late Acceleration (Early unlock penalty at 5%)
     }
 }

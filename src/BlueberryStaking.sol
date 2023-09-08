@@ -571,7 +571,6 @@ contract BlueberryStaking is Ownable, Pausable {
         uint256 _rewardStored = rewardPerTokenStored[_bToken];
         uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
         earnedAmount = (_balance * (_rewardStored - _rewardPaid)) / 1e18;
-    
     }
 
     /**
