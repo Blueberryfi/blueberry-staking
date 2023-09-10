@@ -178,23 +178,31 @@ contract BlueberryStaking is Ownable, Pausable {
         for (uint256 i; i < _bTokens.length;) {
             address _bToken = _bTokens[i];
 
-            if (!isBToken[_bToken]) {
-                revert InvalidBToken();
-            }
-
-            rewardPerTokenStored[_bToken] = rewardPerToken(_bToken);
-            lastUpdateTime[_bToken] = lastTimeRewardApplicable();
-
-            if (_user != address(0)) {
-                rewards[_user][_bToken] = earned(_user, _bToken);
-                userRewardPerTokenPaid[_user][_bToken] = rewardPerTokenStored[_bToken];
-            }
+            _updateReward(_user, _bToken);
 
             unchecked{
                 ++i;
             }
         }
         _;
+    }
+
+    /**
+    * @param _user The user to update the rewards for
+    * @param _bToken token to update the rewards for
+    */
+    function _updateReward(address _user, address _bToken) internal {
+        if (!isBToken[_bToken]) {
+            revert InvalidBToken();
+        }
+
+        rewardPerTokenStored[_bToken] = rewardPerToken(_bToken);
+        lastUpdateTime[_bToken] = lastTimeRewardApplicable();
+
+        if (_user != address(0)) {
+            rewards[_user][_bToken] = _earned(_user, _bToken);
+            userRewardPerTokenPaid[_user][_bToken] = rewardPerTokenStored[_bToken];
+        }
     }
 
     /**
@@ -567,6 +575,13 @@ contract BlueberryStaking is Ownable, Pausable {
     * @return earnedAmount the amount of rewards the given user has earned for the given bToken
     */
     function earned(address _account, address _bToken) public view returns (uint256 earnedAmount) {
+        return _earned(_account, _bToken);
+    }
+
+    /**
+    * @return earnedAmount the amount of rewards the given user has earned for the given bToken
+    */
+    function _earned(address _account, address _bToken) internal view returns (uint256 earnedAmount) {
         uint256 _balance = balanceOf[_account][_bToken];
         uint256 _rewardStored = rewardPerTokenStored[_bToken];
         uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
