@@ -583,9 +583,9 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function _earned(address _account, address _bToken) internal view returns (uint256 earnedAmount) {
         uint256 _balance = balanceOf[_account][_bToken];
-        uint256 _rewardStored = rewardPerTokenStored[_bToken];
+        uint256 _rewardPerToken = rewardPerToken(_bToken);
         uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
-        earnedAmount = (_balance * (_rewardStored - _rewardPaid)) / 1e18;
+        earnedAmount = (_balance * (_rewardPerToken - _rewardPaid)) / 1e18;
     }
 
     /**
@@ -628,7 +628,7 @@ contract BlueberryStaking is Ownable, Pausable {
         
         // If the vesting period has occured the same block, the penalty ratio is 100% of the base penalty ratio
         if (_vestTimeElapsed <= 0) {
-            penaltyRatio = basePenaltyRatioPercent * 1e16;
+            penaltyRatio = basePenaltyRatioPercent * 1e15;
         }
         // If the vesting period is mid-acceleration, calculate the penalty ratio based on the time passed
         else if (_vestTimeElapsed < vestLength){
