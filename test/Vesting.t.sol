@@ -28,6 +28,10 @@ contract BlueberryStakingTest is Test {
     uint256 public sallyInitialBalance = 1e18 * 200;
     uint256 public ownerInitialBalance;
 
+    uint256[] public rewardAmounts = new uint256[](1);
+    uint256[] public stakeAmounts = new uint256[](1);
+    address[] public bTokens = new address[](1);
+
     function isCloseEnough(uint256 a, uint256 b) public pure returns (bool) {
         if (a > b) {
             return a - b <= 1e6;
@@ -72,30 +76,18 @@ contract BlueberryStakingTest is Test {
         mockUSDC.transfer(sally, 1e10);
 
         vm.stopPrank();
-        
-    }
-
-
-    function testAccelerateVestingMultipleTokens() public {
-
-        // Temporary variables
-
-        uint256[] memory rewardAmounts = new uint256[](3);
-        uint256[] memory stakeAmounts = new uint256[](3);
 
         // 1. Notify the new rewards amount 4_000 of each token for the epoch
 
         vm.startPrank(owner);
 
         rewardAmounts[0] = 1e18 * 20;
-        rewardAmounts[1] = 1e18 * 20;
-        rewardAmounts[2] = 1e18 * 20;
 
         stakeAmounts[0] = 1e18 * 5;
-        stakeAmounts[1] = 1e18 * 5;
-        stakeAmounts[2] = 1e18 * 5;
 
-        blueberryStaking.notifyRewardAmount(existingBTokens, rewardAmounts);
+        bTokens[0] = existingBTokens[0];
+
+        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -104,73 +96,58 @@ contract BlueberryStakingTest is Test {
         vm.startPrank(bob);
 
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        mockbToken2.approve(address(blueberryStaking), stakeAmounts[1]);
-        mockbToken3.approve(address(blueberryStaking), stakeAmounts[2]);
 
-        blueberryStaking.stake(existingBTokens, stakeAmounts);
+        blueberryStaking.stake(bTokens, stakeAmounts);
 
         console.log("BLB balance before: %s", blb.balanceOf(address(this)));
 
         skip(14 days);
 
-        blueberryStaking.startVesting(existingBTokens);
+        blueberryStaking.startVesting(bTokens);
+        
+    }
+
+
+    function testAccelerateVestingMonthOne() public {
 
         // 3. 1/2 a year has now passed, bob decides to accelerate his vesting
 
-        vm.warp(120 days);
+        vm.warp(180 days);
         
-        uint256[] memory indexes = new uint256[](3);
+        uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
-        indexes[1] = 1;
-        indexes[2] = 2;
 
         mockUSDC.approve(address(blueberryStaking), 1e6 * 10_000);
 
-        console.log("USDC balance before acceleration 1/2 year in: $%s", mockUSDC.balanceOf(bob) / 1e6);
+        uint256 _usdcBefore = mockUSDC.balanceOf(bob);
 
-        console.log("Acceleration Fee: %s", blueberryStaking.getAccelerationFeeUSDC(bob, 0));
+        console.log("USDC balance before acceleration 1/2 year in: $%s", mockUSDC.balanceOf(bob) / 1e6);
+        console.log("Acceleration Ratio: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+
+        (uint256 vestAmount,, uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
+        uint256 _earlyUnlockRatio = (blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0));
+        uint256 _expectedCost = _earlyUnlockRatio * underlyingCost * vestAmount;
+        uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeUSDC(bob, 0));
+
+        console.log("expected cost: $%s", _expectedCost / 1e48);
+        console.log("real cost: $%s", _accelerationFee);
+
         blueberryStaking.accelerateVesting(indexes);
 
         console.log("USDC balance after acceleration 1/2 year: $%s", mockUSDC.balanceOf(bob) / 1e6);
+
+        require(_usdcBefore - _accelerationFee == mockUSDC.balanceOf(bob));
 
         console.log("BLB balance after acceleration: %s", blb.balanceOf(address(this)));
     }
 
     function testEnsureEarlyUnlockRatioLinear() public {
 
-        // Temporary variables
-
-        uint256[] memory rewardAmounts = new uint256[](1);
-        uint256[] memory stakeAmounts = new uint256[](1);
-        address[] memory bTokens = new address[](1);
-
-        // 1. Notify the new rewards amount 20 tokens for the first epoch
-
-        vm.startPrank(owner);
-
-        rewardAmounts[0] = 1e18 * 20;
-
-        stakeAmounts[0] = 1e18 * 10;
-
-        bTokens[0] = address(mockbToken1);
-
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
-
-        vm.stopPrank();
-
-        // 2. bob stakes 10 bToken1
-
-        vm.startPrank(bob);
-        
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-
-        blueberryStaking.stake(bTokens, stakeAmounts);
-
-        skip(14 days);
-
         blueberryStaking.startVesting(bTokens);
 
         console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15, 35);
 
         skip(10 days);
 
@@ -183,5 +160,7 @@ contract BlueberryStakingTest is Test {
         skip(200 days);
 
         console2.log("Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+    
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
     }
 }

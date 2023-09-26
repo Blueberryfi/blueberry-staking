@@ -504,7 +504,7 @@ contract BlueberryStaking is Ownable, Pausable {
 
     /**
      * @notice gets the current price for BLB in USDC
-     * @return _price The current price
+     * @return _price The current price using 6 decimal points
      */
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
