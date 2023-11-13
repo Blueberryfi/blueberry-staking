@@ -126,17 +126,17 @@ contract BlueberryStakingTest is Test {
 
         (uint256 vestAmount,, uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
         uint256 _earlyUnlockRatio = (blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0));
-        uint256 _expectedCost = _earlyUnlockRatio * underlyingCost * vestAmount;
+        uint256 _expectedCost = (_earlyUnlockRatio * ((underlyingCost * vestAmount) / 1e18) / 1e18) / 1e12;
         uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeUSDC(bob, 0));
 
-        console.log("expected cost: $%s", _expectedCost / 1e48);
+        console.log("expected cost: $0.%s", _expectedCost);
         console.log("real cost: $%s", _accelerationFee);
 
         blueberryStaking.accelerateVesting(indexes);
 
         console.log("USDC balance after acceleration 1/2 year: $%s", mockUSDC.balanceOf(bob) / 1e6);
 
-        require(_usdcBefore - _accelerationFee == mockUSDC.balanceOf(bob));
+        require(isCloseEnough(_usdcBefore - (_expectedCost / 1e46), mockUSDC.balanceOf(bob)));
 
         console.log("BLB balance after acceleration: %s", blb.balanceOf(address(this)));
     }

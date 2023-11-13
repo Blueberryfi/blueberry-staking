@@ -118,12 +118,13 @@ contract BlueberryStakingTest is Test {
 
         // 3.5 Ensure that the rewards are half of the total rewards given that half of an epoch has passed
 
+        console2.log("bob earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+
         assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockbToken1)), rewardAmounts[0] / 2), true);
 
         // 4. Start vesting
 
         blueberryStaking.startVesting(bTokens);
-
 
         // 5. 1 year passes, all rewards should be fully vested
 
@@ -136,6 +137,49 @@ contract BlueberryStakingTest is Test {
         indexes[0] = 0;
 
         blueberryStaking.completeVesting(indexes);
+    }
+
+    function testMultiStake() public {
+        vm.startPrank(owner);
+        blueberryStaking.setRewardDuration(28 days);
+
+        uint256[] memory rewardAmounts = new uint256[](1);
+        rewardAmounts[0] = 1e18 * 1_000;
+
+        uint256[] memory stakeAmounts = new uint256[](1);
+        stakeAmounts[0] = 1e18 * 50;
+
+        address[] memory bTokens = new address[](1);
+        bTokens[0] = address(mockbToken1);
+
+        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        skip(7 days);
+
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        skip(7 days);
+
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        skip(7 days);
+
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
     }
 
     function testVestYieldsRewardsCorrectlyForMultipleStakers() public {

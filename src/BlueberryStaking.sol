@@ -19,12 +19,30 @@ import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 import '../lib/v3-core/contracts/libraries/FullMath.sol';
 import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
-import './BlueberryLib.sol';
 import './IBlueberryToken.sol';
+
+error NotOwner();
+error AddressZero();
+error InvalidStartTime();
+error InvalidBalance();
+error InvalidDuration();
+error InvalidEpoch();
+error LockDropActive();
+error LockDropInactive();
+error NotKeeper();
+error InvalidIndex();
+error InvalidAmount();
+error InvalidbToken();
+error ZeroEmissionSchedules();
+error TransferFailed();
+error VestingNotCompleted();
+error InvalidBToken();
+error InvalidLength();
+error InvalidRewardDuration();
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
- * @author Blueberry protocol
+ * @author Blueberry protocol @haruxeETH
  */
 contract BlueberryStaking is Ownable, Pausable {
 
@@ -66,33 +84,67 @@ contract BlueberryStaking is Ownable, Pausable {
                         VARIABLES
     //////////////////////////////////////////////////*/
 
+    /// @notice The Blueberry token contract
     IBlueberryToken public blb;
+
+    /// @notice The USDC token contract
     IERC20 public usdc;
+
+    /// @notice The treasury address
     address public treasury;
 
+    /// @notice The Uniswap V3 pool address
     address public uniswapV3Pool;
+
+    /// @notice The Uniswap V3 factory address
     address public uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+
+    /// @notice The observation period for Uniswap V3
     uint32 public observationPeriod = 3600;
 
+    /// @notice The total number of B tokens
     uint256 public totalBTokens;
 
+    /// @notice The total supply of tokens for each address
     mapping(address => uint256) public totalSupply;
+
+    /// @notice The stored reward per token for each address
     mapping(address => uint256) public rewardPerTokenStored;
+
+    /// @notice The last update time for each address
     mapping(address => uint256) public lastUpdateTime;
+    
+    /// @notice The reward rate for each address
     mapping(address => uint256) public rewardRate;
+    
+    /// @notice The last claimed epoch for each address
     mapping(address => uint256) public lastClaimedEpoch;
-
+    
+    /// @notice The B token status for each address
     mapping(address => bool) public isBToken;
-
+    
+    /// @notice The vesting schedule for each address
     mapping(address => Vest[]) public vesting;
-
+    
+    /// @notice The balance of tokens for each address
     mapping(address => mapping(address => uint256)) public balanceOf;
+    
+    /// @notice The rewards for each address
     mapping(address => mapping(address => uint256)) public rewards;
+    
+    /// @notice The paid reward per token for each user
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
+    /// @notice The reward duration
     uint256 public rewardDuration;
+    
+    /// @notice The finish time for rewards
     uint256 public finishAt;
+    
+    /// @notice The length of the vesting period
     uint256 public vestLength = 365 days;
+    
+    /// @notice The deployment time of the contract
     uint256 public deployedAt;
 
     // 35% at the start of each vesting period
@@ -137,12 +189,8 @@ contract BlueberryStaking is Ownable, Pausable {
         }
 
         if (_bTokens.length <= 0){
-            revert AddressZero();
+            revert InvalidBToken();
         }
-
-        blb = IBlueberryToken(_blb);
-        usdc = IERC20(_usdc);
-        treasury = _treasury;
 
         for (uint256 i; i < _bTokens.length;) {
             if (_bTokens[i] == address(0)){
@@ -156,10 +204,14 @@ contract BlueberryStaking is Ownable, Pausable {
             }
         }
 
+        if (_rewardDuration <= 0){
+            revert InvalidRewardDuration();
+        }
+
+        blb = IBlueberryToken(_blb);
+        usdc = IERC20(_usdc);
+        treasury = _treasury;
         totalBTokens = _bTokens.length;
-
-        require(_rewardDuration > 0, "Invalid reward duration");
-
         rewardDuration = _rewardDuration;
         finishAt = block.timestamp + _rewardDuration;
         deployedAt = block.timestamp;
@@ -585,7 +637,7 @@ contract BlueberryStaking is Ownable, Pausable {
         uint256 _balance = balanceOf[_account][_bToken];
         uint256 _rewardPerToken = rewardPerToken(_bToken);
         uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
-        earnedAmount = (_balance * (_rewardPerToken - _rewardPaid)) / 1e18;
+        earnedAmount = (_balance * (_rewardPerToken - _rewardPaid)) / 1e18 + rewards[_account][_bToken];
     }
 
     /**
