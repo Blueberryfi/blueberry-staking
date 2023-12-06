@@ -8,11 +8,12 @@
 ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
 */
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.22;
 
 import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
 import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
+import { SafeERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '../lib/v3-core/contracts/libraries/TickMath.sol';
 import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -45,6 +46,8 @@ error InvalidRewardDuration();
  * @author Blueberry protocol @haruxeETH
  */
 contract BlueberryStaking is Ownable, Pausable {
+
+    using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////
                          EVENTS
@@ -155,9 +158,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
     mapping(uint256 => Epoch) public epochs;
 
-    /// @notice The precision used for ratio calculations.
-    uint256 constant public RATIO_PRECISION = 1_000_000_000_000_000_000;
-
     /**
      * @notice the length of an epoch in seconds
      * @dev 14 days by default
@@ -188,23 +188,19 @@ contract BlueberryStaking is Ownable, Pausable {
             revert AddressZero();
         }
 
-        if (_bTokens.length <= 0){
+        if (_bTokens.length == 0){
             revert InvalidBToken();
         }
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
 
             isBToken[_bTokens[i]] = true;
-
-            unchecked{
-                ++i;
-            }
         }
 
-        if (_rewardDuration <= 0){
+        if (_rewardDuration == 0){
             revert InvalidRewardDuration();
         }
 
@@ -227,14 +223,10 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _bTokens An array of tokens to update the rewards for
     */
     modifier updateRewards(address _user, address[] calldata _bTokens) {
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             _updateReward(_user, _bToken);
-
-            unchecked{
-                ++i;
-            }
         }
         _;
     }
@@ -266,7 +258,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             if (!isBToken[_bToken]) {
@@ -278,15 +270,7 @@ contract BlueberryStaking is Ownable, Pausable {
             balanceOf[msg.sender][_bToken] += _amount;
             totalSupply[_bToken] += _amount;
 
-            (bool success) = IERC20(_bToken).transferFrom(msg.sender, address(this), _amount);
-
-            if (!success) {
-                revert TransferFailed();
-            }
-
-            unchecked {
-                ++i;
-            }
+            IERC20(_bToken).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
         emit Staked(msg.sender, _bTokens, _amounts, block.timestamp);
@@ -301,7 +285,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function unstake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             if (!isBToken[address(_bToken)]) {
@@ -313,15 +297,7 @@ contract BlueberryStaking is Ownable, Pausable {
             balanceOf[msg.sender][address(_bToken)] -= _amount;
             totalSupply[address(_bToken)] -= _amount;
 
-            (bool success) = IERC20(_bToken).transfer(msg.sender, _amount);
-
-            if (!success) {
-                revert TransferFailed();
-            }
-
-            unchecked{
-                ++i;
-            }
+            IERC20(_bToken).safeTransfer(msg.sender, _amount);
         }
 
         emit Unstaked(msg.sender, _bTokens, _amounts, block.timestamp);
@@ -337,7 +313,7 @@ contract BlueberryStaking is Ownable, Pausable {
 
         Vest[] storage vests = vesting[msg.sender];
 
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
 
             require(vest.amount > 0, "Nothing to update");
@@ -346,10 +322,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             if (epochs[_vestEpoch].redistributedBLB > 0) {
                 vest.amount = (vest.amount * epochs[_vestEpoch].redistributedBLB) / epochs[_vestEpoch].totalBLB;
-            }
-
-            unchecked{
-                ++i;
             }
         }
 
@@ -367,7 +339,7 @@ contract BlueberryStaking is Ownable, Pausable {
         lastClaimedEpoch[msg.sender] = _currentEpoch;
 
         uint256 totalRewards;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (!isBToken[address(_bTokens[i])]) {
                 revert InvalidBToken();
             }
@@ -383,10 +355,6 @@ contract BlueberryStaking is Ownable, Pausable {
                 uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(Vest(reward, block.timestamp, _priceUnderlying));
-            }
-
-            unchecked{
-                ++i;
             }
         }
 
@@ -405,17 +373,13 @@ contract BlueberryStaking is Ownable, Pausable {
         require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
 
         uint256 totalbdblb;
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage v = vests[_vestIndexes[i]];
 
             require(isVestingComplete(msg.sender, _vestIndexes[i]), "Vesting is not yet complete");
 
             totalbdblb += v.amount;
             delete vests[_vestIndexes[i]];
-
-            unchecked{
-                ++i;
-            }
         }
 
         if (totalbdblb > 0) {
@@ -449,7 +413,7 @@ contract BlueberryStaking is Ownable, Pausable {
         uint256 totalbdblb;
         uint256 totalRedistributedAmount;
         uint256 totalAccelerationFee;
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             uint256 _vestIndex = _vestIndexes[i];
             Vest storage _vest = vests[_vestIndex];
             uint256 _vestAmount = _vest.amount;
@@ -484,16 +448,11 @@ contract BlueberryStaking is Ownable, Pausable {
 
             // delete the vest
             delete vests[_vestIndex];
-
-            unchecked{
-                ++i;
-            }
         }
 
         if (totalAccelerationFee > 0) {
             // transfer the acceleration fee to the treasury
-            (bool success) = usdc.transferFrom(msg.sender, treasury, totalAccelerationFee);
-            require(success, "Failed to transfer acceleration fee");
+            usdc.safeTransferFrom(msg.sender, treasury, totalAccelerationFee);
         }
 
         if (totalbdblb > 0) {
@@ -656,11 +615,8 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function bdblbBalance(address _user) public view returns (uint256) {
         uint256 _balance;
-        for (uint256 i; i < vesting[_user].length;) {
+        for (uint256 i; i < vesting[_user].length; ++i) {
             _balance += vesting[_user][i].amount;
-            unchecked{
-                ++i;
-            }
         }
         return _balance;
     }
@@ -736,7 +692,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function addBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens += _bTokens.length;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
@@ -745,10 +701,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             isBToken[_bTokens[i]] = true;
             
-            
-            unchecked{
-                ++i;
-            }
         }
 
         emit BTokensAdded(_bTokens, block.timestamp);
@@ -760,7 +712,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function removeBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens -= _bTokens.length;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
@@ -768,10 +720,6 @@ contract BlueberryStaking is Ownable, Pausable {
             require(isBToken[_bTokens[i]], "Not a bToken");
 
             isBToken[_bTokens[i]] = false;
-            
-            unchecked{
-                ++i;
-            }
         }
 
         emit BTokensRemoved(_bTokens, block.timestamp);
@@ -787,7 +735,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function notifyRewardAmount(address[] calldata _bTokens, uint256[] calldata _amounts) external onlyOwner() updateRewards(address(0), _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
             uint256 _amount = _amounts[i];
 
@@ -803,10 +751,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             finishAt = block.timestamp + rewardDuration;
             lastUpdateTime[_bToken] = block.timestamp;
-
-            unchecked {
-                ++i;
-            }
         }
 
         emit RewardAmountNotified(_bTokens, _amounts, block.timestamp);
