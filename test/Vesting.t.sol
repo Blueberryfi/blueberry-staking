@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.22;
 
 import "../lib/forge-std/src/Test.sol";
 import "../src/BlueberryStaking.sol";
@@ -145,21 +145,21 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking.startVesting(bTokens);
 
-        console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+        console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
 
-        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15, 35);
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 35);
 
         skip(10 days);
 
-        console2.log("Unlock penalty ratio after 10 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+        console2.log("Unlock penalty ratio after 10 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
 
         skip(155 days);
 
-        console2.log("Unlock penalty ratio after 165 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+        console2.log("Unlock penalty ratio after 165 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
 
         skip(200 days);
 
-        console2.log("Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
+        console2.log("Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
     
         assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
     }

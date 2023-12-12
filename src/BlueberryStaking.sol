@@ -20,6 +20,7 @@ import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 import '../lib/v3-core/contracts/libraries/FullMath.sol';
 import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
+import 'solady/src/utils/FixedPointMathLib.sol';
 import './IBlueberryToken.sol';
 
 error NotOwner();
@@ -48,6 +49,7 @@ error InvalidRewardDuration();
 contract BlueberryStaking is Ownable, Pausable {
 
     using SafeERC20 for IERC20;
+    using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////
                          EVENTS
@@ -151,7 +153,7 @@ contract BlueberryStaking is Ownable, Pausable {
     uint256 public deployedAt;
 
     // 35% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = 35;
+    uint256 public basePenaltyRatioPercent = .35e18;
 
     // USDC has 6 decimals- but this can be changed in case of depeg and new token set
     uint256 private _usdcDecimals = 6;
@@ -636,11 +638,11 @@ contract BlueberryStaking is Ownable, Pausable {
         
         // If the vesting period has occured the same block, the penalty ratio is 100% of the base penalty ratio
         if (_vestTimeElapsed <= 0) {
-            penaltyRatio = basePenaltyRatioPercent * 1e15;
+            penaltyRatio = basePenaltyRatioPercent;
         }
         // If the vesting period is mid-acceleration, calculate the penalty ratio based on the time passed
         else if (_vestTimeElapsed < vestLength){
-            penaltyRatio = (vestLength - _vestTimeElapsed) * 1e15 / vestLength * basePenaltyRatioPercent;
+            penaltyRatio = (vestLength - _vestTimeElapsed).divWad(vestLength) * basePenaltyRatioPercent / 1e18;
         }
         // If the vesting period is over, return 0
         else {
@@ -784,7 +786,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _ratio The new base penalty ratio in percent
     */
     function setbasePenaltyRatioPercent(uint256 _ratio) external onlyOwner() {
-        require(_ratio < 100, "Ratio must be below 100%");
+        require(_ratio < 1e18, "Ratio must be below 100%");
         basePenaltyRatioPercent = _ratio;
 
         emit BasePenaltyRatioChanged(_ratio, block.timestamp);
