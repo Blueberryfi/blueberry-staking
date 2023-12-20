@@ -8,25 +8,48 @@
 ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
 */
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.22;
 
 import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
 import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
+import { SafeERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '../lib/v3-core/contracts/libraries/TickMath.sol';
 import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 import '../lib/v3-core/contracts/libraries/FullMath.sol';
 import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
-import './BlueberryLib.sol';
+import 'solady/src/utils/FixedPointMathLib.sol';
 import './IBlueberryToken.sol';
+
+error NotOwner();
+error AddressZero();
+error InvalidStartTime();
+error InvalidBalance();
+error InvalidDuration();
+error InvalidEpoch();
+error LockDropActive();
+error LockDropInactive();
+error NotKeeper();
+error InvalidIndex();
+error InvalidAmount();
+error InvalidbToken();
+error ZeroEmissionSchedules();
+error TransferFailed();
+error VestingNotCompleted();
+error InvalidBToken();
+error InvalidLength();
+error InvalidRewardDuration();
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
- * @author Blueberry protocol
+ * @author Blueberry protocol @haruxeETH
  */
 contract BlueberryStaking is Ownable, Pausable {
+
+    using SafeERC20 for IERC20;
+    using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////
                          EVENTS
@@ -66,45 +89,76 @@ contract BlueberryStaking is Ownable, Pausable {
                         VARIABLES
     //////////////////////////////////////////////////*/
 
+    /// @notice The Blueberry token contract
     IBlueberryToken public blb;
+
+    /// @notice The USDC token contract
     IERC20 public usdc;
+
+    /// @notice The treasury address
     address public treasury;
 
+    /// @notice The Uniswap V3 pool address
     address public uniswapV3Pool;
+
+    /// @notice The Uniswap V3 factory address
     address public uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+
+    /// @notice The observation period for Uniswap V3
     uint32 public observationPeriod = 3600;
 
+    /// @notice The total number of B tokens
     uint256 public totalBTokens;
 
+    /// @notice The total supply of tokens for each address
     mapping(address => uint256) public totalSupply;
+
+    /// @notice The stored reward per token for each address
     mapping(address => uint256) public rewardPerTokenStored;
+
+    /// @notice The last update time for each address
     mapping(address => uint256) public lastUpdateTime;
+    
+    /// @notice The reward rate for each address
     mapping(address => uint256) public rewardRate;
+    
+    /// @notice The last claimed epoch for each address
     mapping(address => uint256) public lastClaimedEpoch;
-
+    
+    /// @notice The B token status for each address
     mapping(address => bool) public isBToken;
-
+    
+    /// @notice The vesting schedule for each address
     mapping(address => Vest[]) public vesting;
-
+    
+    /// @notice The balance of tokens for each address
     mapping(address => mapping(address => uint256)) public balanceOf;
+    
+    /// @notice The rewards for each address
     mapping(address => mapping(address => uint256)) public rewards;
+    
+    /// @notice The paid reward per token for each user
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
+    /// @notice The reward duration
     uint256 public rewardDuration;
+    
+    /// @notice The finish time for rewards
     uint256 public finishAt;
+    
+    /// @notice The length of the vesting period
     uint256 public vestLength = 365 days;
+    
+    /// @notice The deployment time of the contract
     uint256 public deployedAt;
 
     // 35% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = 35;
+    uint256 public basePenaltyRatioPercent = .35e18;
 
     // USDC has 6 decimals- but this can be changed in case of depeg and new token set
     uint256 private _usdcDecimals = 6;
 
     mapping(uint256 => Epoch) public epochs;
-
-    /// @notice The precision used for ratio calculations.
-    uint256 constant public RATIO_PRECISION = 1_000_000_000_000_000_000;
 
     /**
      * @notice the length of an epoch in seconds
@@ -136,30 +190,26 @@ contract BlueberryStaking is Ownable, Pausable {
             revert AddressZero();
         }
 
-        if (_bTokens.length <= 0){
-            revert AddressZero();
+        if (_bTokens.length == 0){
+            revert InvalidBToken();
         }
 
-        blb = IBlueberryToken(_blb);
-        usdc = IERC20(_usdc);
-        treasury = _treasury;
-
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
 
             isBToken[_bTokens[i]] = true;
-
-            unchecked{
-                ++i;
-            }
         }
 
+        if (_rewardDuration == 0){
+            revert InvalidRewardDuration();
+        }
+
+        blb = IBlueberryToken(_blb);
+        usdc = IERC20(_usdc);
+        treasury = _treasury;
         totalBTokens = _bTokens.length;
-
-        require(_rewardDuration > 0, "Invalid reward duration");
-
         rewardDuration = _rewardDuration;
         finishAt = block.timestamp + _rewardDuration;
         deployedAt = block.timestamp;
@@ -175,14 +225,10 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _bTokens An array of tokens to update the rewards for
     */
     modifier updateRewards(address _user, address[] calldata _bTokens) {
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             _updateReward(_user, _bToken);
-
-            unchecked{
-                ++i;
-            }
         }
         _;
     }
@@ -214,7 +260,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             if (!isBToken[_bToken]) {
@@ -226,15 +272,7 @@ contract BlueberryStaking is Ownable, Pausable {
             balanceOf[msg.sender][_bToken] += _amount;
             totalSupply[_bToken] += _amount;
 
-            (bool success) = IERC20(_bToken).transferFrom(msg.sender, address(this), _amount);
-
-            if (!success) {
-                revert TransferFailed();
-            }
-
-            unchecked {
-                ++i;
-            }
+            IERC20(_bToken).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
         emit Staked(msg.sender, _bTokens, _amounts, block.timestamp);
@@ -249,7 +287,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function unstake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
 
             if (!isBToken[address(_bToken)]) {
@@ -261,15 +299,7 @@ contract BlueberryStaking is Ownable, Pausable {
             balanceOf[msg.sender][address(_bToken)] -= _amount;
             totalSupply[address(_bToken)] -= _amount;
 
-            (bool success) = IERC20(_bToken).transfer(msg.sender, _amount);
-
-            if (!success) {
-                revert TransferFailed();
-            }
-
-            unchecked{
-                ++i;
-            }
+            IERC20(_bToken).safeTransfer(msg.sender, _amount);
         }
 
         emit Unstaked(msg.sender, _bTokens, _amounts, block.timestamp);
@@ -285,7 +315,7 @@ contract BlueberryStaking is Ownable, Pausable {
 
         Vest[] storage vests = vesting[msg.sender];
 
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
 
             require(vest.amount > 0, "Nothing to update");
@@ -294,10 +324,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             if (epochs[_vestEpoch].redistributedBLB > 0) {
                 vest.amount = (vest.amount * epochs[_vestEpoch].redistributedBLB) / epochs[_vestEpoch].totalBLB;
-            }
-
-            unchecked{
-                ++i;
             }
         }
 
@@ -315,7 +341,7 @@ contract BlueberryStaking is Ownable, Pausable {
         lastClaimedEpoch[msg.sender] = _currentEpoch;
 
         uint256 totalRewards;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (!isBToken[address(_bTokens[i])]) {
                 revert InvalidBToken();
             }
@@ -331,10 +357,6 @@ contract BlueberryStaking is Ownable, Pausable {
                 uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(Vest(reward, block.timestamp, _priceUnderlying));
-            }
-
-            unchecked{
-                ++i;
             }
         }
 
@@ -353,17 +375,13 @@ contract BlueberryStaking is Ownable, Pausable {
         require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
 
         uint256 totalbdblb;
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage v = vests[_vestIndexes[i]];
 
             require(isVestingComplete(msg.sender, _vestIndexes[i]), "Vesting is not yet complete");
 
             totalbdblb += v.amount;
             delete vests[_vestIndexes[i]];
-
-            unchecked{
-                ++i;
-            }
         }
 
         if (totalbdblb > 0) {
@@ -397,7 +415,7 @@ contract BlueberryStaking is Ownable, Pausable {
         uint256 totalbdblb;
         uint256 totalRedistributedAmount;
         uint256 totalAccelerationFee;
-        for (uint256 i; i < _vestIndexes.length;) {
+        for (uint256 i; i < _vestIndexes.length; ++i) {
             uint256 _vestIndex = _vestIndexes[i];
             Vest storage _vest = vests[_vestIndex];
             uint256 _vestAmount = _vest.amount;
@@ -432,16 +450,11 @@ contract BlueberryStaking is Ownable, Pausable {
 
             // delete the vest
             delete vests[_vestIndex];
-
-            unchecked{
-                ++i;
-            }
         }
 
         if (totalAccelerationFee > 0) {
             // transfer the acceleration fee to the treasury
-            (bool success) = usdc.transferFrom(msg.sender, treasury, totalAccelerationFee);
-            require(success, "Failed to transfer acceleration fee");
+            usdc.safeTransferFrom(msg.sender, treasury, totalAccelerationFee);
         }
 
         if (totalbdblb > 0) {
@@ -504,7 +517,7 @@ contract BlueberryStaking is Ownable, Pausable {
 
     /**
      * @notice gets the current price for BLB in USDC
-     * @return _price The current price
+     * @return _price The current price using 6 decimal points
      */
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
@@ -583,9 +596,9 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function _earned(address _account, address _bToken) internal view returns (uint256 earnedAmount) {
         uint256 _balance = balanceOf[_account][_bToken];
-        uint256 _rewardStored = rewardPerTokenStored[_bToken];
+        uint256 _rewardPerToken = rewardPerToken(_bToken);
         uint256 _rewardPaid = userRewardPerTokenPaid[_account][_bToken];
-        earnedAmount = (_balance * (_rewardStored - _rewardPaid)) / 1e18;
+        earnedAmount = (_balance * (_rewardPerToken - _rewardPaid)) / 1e18 + rewards[_account][_bToken];
     }
 
     /**
@@ -604,11 +617,8 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function bdblbBalance(address _user) public view returns (uint256) {
         uint256 _balance;
-        for (uint256 i; i < vesting[_user].length;) {
+        for (uint256 i; i < vesting[_user].length; ++i) {
             _balance += vesting[_user][i].amount;
-            unchecked{
-                ++i;
-            }
         }
         return _balance;
     }
@@ -628,11 +638,11 @@ contract BlueberryStaking is Ownable, Pausable {
         
         // If the vesting period has occured the same block, the penalty ratio is 100% of the base penalty ratio
         if (_vestTimeElapsed <= 0) {
-            penaltyRatio = basePenaltyRatioPercent * 1e16;
+            penaltyRatio = basePenaltyRatioPercent;
         }
         // If the vesting period is mid-acceleration, calculate the penalty ratio based on the time passed
         else if (_vestTimeElapsed < vestLength){
-            penaltyRatio = (vestLength - _vestTimeElapsed) * 1e15 / vestLength * basePenaltyRatioPercent;
+            penaltyRatio = (vestLength - _vestTimeElapsed).divWad(vestLength) * basePenaltyRatioPercent / 1e18;
         }
         // If the vesting period is over, return 0
         else {
@@ -684,7 +694,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function addBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens += _bTokens.length;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
@@ -693,10 +703,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             isBToken[_bTokens[i]] = true;
             
-            
-            unchecked{
-                ++i;
-            }
         }
 
         emit BTokensAdded(_bTokens, block.timestamp);
@@ -708,7 +714,7 @@ contract BlueberryStaking is Ownable, Pausable {
     */
     function removeBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens -= _bTokens.length;
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             if (_bTokens[i] == address(0)){
                 revert AddressZero();
             }
@@ -716,10 +722,6 @@ contract BlueberryStaking is Ownable, Pausable {
             require(isBToken[_bTokens[i]], "Not a bToken");
 
             isBToken[_bTokens[i]] = false;
-            
-            unchecked{
-                ++i;
-            }
         }
 
         emit BTokensRemoved(_bTokens, block.timestamp);
@@ -735,7 +737,7 @@ contract BlueberryStaking is Ownable, Pausable {
     function notifyRewardAmount(address[] calldata _bTokens, uint256[] calldata _amounts) external onlyOwner() updateRewards(address(0), _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
-        for (uint256 i; i < _bTokens.length;) {
+        for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
             uint256 _amount = _amounts[i];
 
@@ -751,10 +753,6 @@ contract BlueberryStaking is Ownable, Pausable {
 
             finishAt = block.timestamp + rewardDuration;
             lastUpdateTime[_bToken] = block.timestamp;
-
-            unchecked {
-                ++i;
-            }
         }
 
         emit RewardAmountNotified(_bTokens, _amounts, block.timestamp);
@@ -788,7 +786,7 @@ contract BlueberryStaking is Ownable, Pausable {
     * @param _ratio The new base penalty ratio in percent
     */
     function setbasePenaltyRatioPercent(uint256 _ratio) external onlyOwner() {
-        require(_ratio < 100, "Ratio must be below 100%");
+        require(_ratio < 1e18, "Ratio must be below 100%");
         basePenaltyRatioPercent = _ratio;
 
         emit BasePenaltyRatioChanged(_ratio, block.timestamp);
