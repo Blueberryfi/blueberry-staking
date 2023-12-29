@@ -10,18 +10,17 @@
 
 pragma solidity 0.8.22;
 
-import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
-import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
-import { SafeERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import '../lib/v3-core/contracts/libraries/TickMath.sol';
-import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
-import '../lib/v3-core/contracts/libraries/FullMath.sol';
-import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
-import 'solady/src/utils/FixedPointMathLib.sol';
+import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { Pausable } from 'openzeppelin-contracts/contracts/security/Pausable.sol';
+import { Ownable } from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import 'v3-core/interfaces/IUniswapV3Pool.sol';
+import 'v3-core/libraries/TickMath.sol';
+import "openzeppelin-contracts/contracts/utils/Address.sol";
+import 'v3-core/libraries/FullMath.sol';
+import 'v3-core/libraries/FixedPoint96.sol';
 import './IBlueberryToken.sol';
+import 'solady/src/utils/FixedPointMathLib.sol';
 
 error NotOwner();
 error AddressZero();
