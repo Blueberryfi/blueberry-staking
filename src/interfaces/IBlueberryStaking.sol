@@ -159,9 +159,10 @@ interface IBlueberryStaking {
 
     /**
      * @notice gets the TWAP price for BLB in USDC
+     * @param _secondsInPast The amount of seconds in the past to get the TWAP for
      * @return The TWAP price
      */
-    function fetchTWAP() external view returns (uint256);
+    function fetchTWAP(uint32 _secondsInPast) external view returns (uint256);
 
     /**
      * @notice gets the current price for BLB in USDC
