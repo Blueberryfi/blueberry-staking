@@ -10,80 +10,27 @@
 
 pragma solidity 0.8.22;
 
-import { ERC20, IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import { Pausable } from '../lib/openzeppelin-contracts/contracts/security/Pausable.sol';
-import { Ownable } from "../lib/openzeppelin-contracts/contracts//access/Ownable.sol";
-import { SafeERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import '../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import '../lib/v3-core/contracts/libraries/TickMath.sol';
-import "../lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "../lib/openzeppelin-contracts/contracts/utils/Address.sol";
-import '../lib/v3-core/contracts/libraries/FullMath.sol';
-import '../lib/v3-core/contracts/libraries/FixedPoint96.sol';
+import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { Pausable } from 'openzeppelin-contracts/contracts/security/Pausable.sol';
+import { Ownable } from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import 'v3-core/interfaces/IUniswapV3Pool.sol';
+import 'v3-core/libraries/TickMath.sol';
+import "openzeppelin-contracts/contracts/utils/Address.sol";
+import 'v3-core/libraries/FullMath.sol';
+import 'v3-core/libraries/FixedPoint96.sol';
+import './interfaces/IBlueberryToken.sol';
+import './interfaces/IBlueberryStaking.sol';
 import 'solady/src/utils/FixedPointMathLib.sol';
-import './IBlueberryToken.sol';
-
-error NotOwner();
-error AddressZero();
-error InvalidStartTime();
-error InvalidBalance();
-error InvalidDuration();
-error InvalidEpoch();
-error LockDropActive();
-error LockDropInactive();
-error NotKeeper();
-error InvalidIndex();
-error InvalidAmount();
-error InvalidbToken();
-error ZeroEmissionSchedules();
-error TransferFailed();
-error VestingNotCompleted();
-error InvalidBToken();
-error InvalidLength();
-error InvalidRewardDuration();
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
  * @author Blueberry protocol @haruxeETH
  */
-contract BlueberryStaking is Ownable, Pausable {
+contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
-
-    /*//////////////////////////////////////////////////
-                         EVENTS
-    //////////////////////////////////////////////////*/
-
-    event Staked(address indexed user, address[] bTokens, uint256[] amounts, uint256 timestamp);
-
-    event Unstaked(address indexed user, address[] bTokens, uint256[] amounts, uint256 timestamp);
-
-    event Claimed(address indexed user, uint256 amount, uint256 timestamp);
-
-    event BTokensAdded(address[] indexed bTokens, uint256 timestamp);
-
-    event BTokensRemoved(address[] indexed bTokens, uint256 timestamp);
-
-    event RewardAmountNotified(address[] indexed bTokens, uint256[] amounts, uint256 timestamp);
-
-    event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
-
-    event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
-
-    event EpochLengthUpdated(uint256 epochLength, uint256 timestamp);
-
-    event BasePenaltyRatioChanged(uint256 basePenaltyRatio, uint256 timestamp);
-
-    event RewardDurationUpdated(uint256 rewardDuration, uint256 timestamp);
-
-    event TreasuryUpdated(address treasury, uint256 timestamp);
-
-    event UsdcAddressUpdated(address usdc, uint256 decimals, uint256 timestamp);
-
-    event VestLengthUpdated(uint256 vestLength, uint256 timestamp);
-
-    event BLBUpdated(address blb, uint256 timestamp);
 
     /*//////////////////////////////////////////////////
                         VARIABLES
@@ -153,7 +100,7 @@ contract BlueberryStaking is Ownable, Pausable {
     uint256 public deployedAt;
 
     // 35% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = .35e18;
+    uint256 public basePenaltyRatioPercent = .5e18;
 
     // USDC has 6 decimals- but this can be changed in case of depeg and new token set
     uint256 private _usdcDecimals = 6;
@@ -233,10 +180,6 @@ contract BlueberryStaking is Ownable, Pausable {
         _;
     }
 
-    /**
-    * @param _user The user to update the rewards for
-    * @param _bToken token to update the rewards for
-    */
     function _updateReward(address _user, address _bToken) internal {
         if (!isBToken[_bToken]) {
             revert InvalidBToken();
@@ -251,12 +194,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
     }
 
-    /**
-    * @notice stakes a given amount of each token
-    * @dev The amount of tokens must be approved by the user before calling this function
-    * @param _bTokens An array of the tokens to stake
-    * @param _amounts An array of the amounts of each token to stake
-    */
+    /// @inheritdoc IBlueberryStaking
     function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
@@ -278,12 +216,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit Staked(msg.sender, _bTokens, _amounts, block.timestamp);
     }
 
-    /**
-    * @notice unstakes a given amount of each token
-    * @dev does not claim rewards
-    * @param _bTokens An array of the tokens to unstake
-    * @param _amounts An array of the amounts of each token to unstake
-    */
+    /// @inheritdoc IBlueberryStaking
     function unstake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
@@ -330,10 +263,7 @@ contract BlueberryStaking is Ownable, Pausable {
         _;
     }
 
-    /**
-    * @notice starts the vesting process for a given array of tokens
-    * @param _bTokens An array of the tokens to start vesting for the caller
-    */
+    /// @inheritdoc IBlueberryStaking
     function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
         require(canClaim(msg.sender), "Already claimed this epoch");
         uint256 _currentEpoch = currentEpoch();
@@ -365,10 +295,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit Claimed(msg.sender, totalRewards, block.timestamp);
     }
 
-    /**
-    * @notice Claims the tokens that have completed their vesting schedule for the caller.
-    * @param _vestIndexes The indexes of the vesting schedule to claim.
-    */
+    /// @inheritdoc IBlueberryStaking
     function completeVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
 
         Vest[] storage vests = vesting[msg.sender];
@@ -391,18 +318,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit VestingCompleted(msg.sender, totalbdblb, block.timestamp);
     }
 
-    /**
-     * @notice Accelerates the vesting of the calling user, unlocking tokens by paying the acceleration fee for the given vesting schedule.
-     * @dev User must have have given this contract allowance to transfer the acceleration fee.
-     * Penalty ratio linearly decreases over the course of the vesting period.
-     * @param _vestIndexes The indexes of the vests of the user to accelerate.
-     * 1 +        
-     *   | .      
-     *   |    .   
-     *   |       .
-     *   |          .
-     * 0 +------+-----> 1 year
-     */
+    /// @inheritdoc IBlueberryStaking
     function accelerateVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
         // index must exist
         require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
@@ -468,11 +384,7 @@ contract BlueberryStaking is Ownable, Pausable {
                        VIEW FUNCTIONS
     //////////////////////////////////////////////////*/
 
-    /**
-     * @notice gets the TWAP price for BLB in USDC
-     * @param _secondsInPast The amount of time in the past to get the TWAP for
-     * @return The TWAP price
-     */
+    /// @inheritdoc IBlueberryStaking
     function fetchTWAP(uint32 _secondsInPast) public view returns (uint256) {
         IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
 
@@ -515,10 +427,7 @@ contract BlueberryStaking is Ownable, Pausable {
         return _price;
     }
 
-    /**
-     * @notice gets the current price for BLB in USDC
-     * @return _price The current price using 6 decimal points
-     */
+    /// @inheritdoc IBlueberryStaking
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
         uint256 _month = (block.timestamp - deployedAt) / 30 days;
@@ -537,11 +446,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
     }
 
-    /**
-    * @notice ensures the user can only claim rewards once per epoch
-    * @param _user the user to check
-    * @return returns true if the user can claim, false otherwise
-    */
+    /// @inheritdoc IBlueberryStaking
     function canClaim(address _user) public view returns (bool) {
         uint256 _currentEpoch = currentEpoch();
         return lastClaimedEpoch[_user] <= _currentEpoch;
@@ -559,16 +464,12 @@ contract BlueberryStaking is Ownable, Pausable {
         return address(usdc);
     }
 
-    /**
-    * @return returns true if the vesting schedule is complete for the given user and vesting index
-    */
+    /// @inheritdoc IBlueberryStaking
     function isVestingComplete(address _user, uint256 _vestIndex) public view returns (bool) {
         return vesting[_user][_vestIndex].startTime + vestLength <= block.timestamp;
     }
 
-    /**
-    * @return returns the total amount of rewards for the given bToken
-    */
+    /// @inheritdoc IBlueberryStaking
     function rewardPerToken(address _bToken) public view returns (uint256) {
 
         if (totalSupply[_bToken] == 0) {
@@ -584,16 +485,11 @@ contract BlueberryStaking is Ownable, Pausable {
         }
     }
 
-    /**
-    * @return earnedAmount the amount of rewards the given user has earned for the given bToken
-    */
+    /// @inheritdoc IBlueberryStaking
     function earned(address _account, address _bToken) public view returns (uint256 earnedAmount) {
         return _earned(_account, _bToken);
     }
 
-    /**
-    * @return earnedAmount the amount of rewards the given user has earned for the given bToken
-    */
     function _earned(address _account, address _bToken) internal view returns (uint256 earnedAmount) {
         uint256 _balance = balanceOf[_account][_bToken];
         uint256 _rewardPerToken = rewardPerToken(_bToken);
@@ -601,9 +497,7 @@ contract BlueberryStaking is Ownable, Pausable {
         earnedAmount = (_balance * (_rewardPerToken - _rewardPaid)) / 1e18 + rewards[_account][_bToken];
     }
 
-    /**
-    * @return the timestamp of the last time rewards were updated
-    */
+   /// @inheritdoc IBlueberryStaking
     function lastTimeRewardApplicable() public view returns (uint256) {
         if (block.timestamp > finishAt){
             return finishAt;
@@ -623,13 +517,7 @@ contract BlueberryStaking is Ownable, Pausable {
         return _balance;
     }
 
-    /**
-     * @dev Gets the current unlock penalty ratio, which linearly decreases from 70% to 0% over the vesting period.
-     * This is done by calculating the ratio of the time that has passed since the start of the vesting period to the total vesting period.
-     * @param _user The user's address.
-     * @param _vestingScheduleIndex The index of the vesting schedule.
-     * @return penaltyRatio The current unlock penalty ratio multiplied by 1e15 for precision. Will return 0 on completion of the vesting period.
-     */
+    /// @inheritdoc IBlueberryStaking
     function getEarlyUnlockPenaltyRatio(address _user, uint256 _vestingScheduleIndex) public view returns (uint256 penaltyRatio){
         uint256 _vestStartTime = vesting[_user][_vestingScheduleIndex].startTime;
         uint256 _vestTimeElapsed = block.timestamp - _vestStartTime;
@@ -650,13 +538,7 @@ contract BlueberryStaking is Ownable, Pausable {
         }
     }
 
-    /**
-     * @dev Gets the current acceleration fee ratio, which linearly decreases over the vesting period.
-     * This is done by getting the early unlock penalty ratio, multiplying it by the overall underlying $blb price of the vest
-     * @param _user The user's address.
-     * @param _vestingScheduleIndex The index of the vesting schedule.
-     * @return accelerationFee The current acceleration fee ratio.
-     */
+    /// @inheritdoc IBlueberryStaking
     function getAccelerationFeeUSDC(address _user, uint256 _vestingScheduleIndex) public view returns (uint256 accelerationFee){
         Vest storage _vest = vesting[_user][_vestingScheduleIndex];
         uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(_user, _vestingScheduleIndex);
@@ -668,9 +550,7 @@ contract BlueberryStaking is Ownable, Pausable {
                          MANAGEMENT
     //////////////////////////////////////////////////*/
 
-    /**
-    * @notice Change the blb token address (in case of migration)
-    */
+    /// @inheritdoc IBlueberryStaking
     function changeBLB(address _blb) external onlyOwner() {
         require(_blb != address(0), "AddressZero");
         blb = IBlueberryToken(_blb);
@@ -678,9 +558,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit BLBUpdated(_blb, block.timestamp);
     }
 
-    /**
-    * @notice Change the epoch length in seconds
-    */
+    /// @inheritdoc IBlueberryStaking
     function changeEpochLength(uint256 _epochLength) external onlyOwner() {
         require(_epochLength > 0, "EpochLengthZero");
         epochLength = _epochLength;
@@ -688,10 +566,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit EpochLengthUpdated(_epochLength, block.timestamp);
     }
 
-    /**
-    * @notice Adds the given tokens to the list of bTokens
-    * @param _bTokens An array of the tokens to add
-    */
+    /// @inheritdoc IBlueberryStaking
     function addBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens += _bTokens.length;
         for (uint256 i; i < _bTokens.length; ++i) {
@@ -708,10 +583,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit BTokensAdded(_bTokens, block.timestamp);
     }
 
-    /**
-    * @notice Removes the given tokens from the list of bTokens
-    * @param _bTokens An array of the tokens to remove
-    */
+    /// @inheritdoc IBlueberryStaking
     function removeBTokens(address[] calldata _bTokens) external onlyOwner() {
         totalBTokens -= _bTokens.length;
         for (uint256 i; i < _bTokens.length; ++i) {
@@ -727,13 +599,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit BTokensRemoved(_bTokens, block.timestamp);
     }
 
-    /**
-    * @notice Called by the owner to change the reward rate for a given token(s)
-    * @dev uses address(0) in updateRewards as to not change the reward rate for any user but still update each mappings
-    * @dev the caller should consider the reward rate for each token before calling this function and total rewards should be less than the total amount of tokens
-    * @param _bTokens An array of the tokens to change the reward amounts for
-    * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
-    */
+    /// @inheritdoc IBlueberryStaking
     function notifyRewardAmount(address[] calldata _bTokens, uint256[] calldata _amounts) external onlyOwner() updateRewards(address(0), _bTokens) {
         require(_amounts.length == _bTokens.length, "Invalid length");
 
@@ -758,33 +624,21 @@ contract BlueberryStaking is Ownable, Pausable {
         emit RewardAmountNotified(_bTokens, _amounts, block.timestamp);
     }
 
-    /**
-    * @notice Changes the reward duration in seconds
-    * @dev This will not change the reward rate for any tokens
-    * @param _rewardDuration The new reward duration in seconds
-    */
+    /// @inheritdoc IBlueberryStaking
     function setRewardDuration(uint256 _rewardDuration) external onlyOwner() {
         rewardDuration = _rewardDuration;
 
         emit RewardDurationUpdated(_rewardDuration, block.timestamp);
     }
 
-    /**
-    * @notice Changes the vest length in seconds
-    * @dev Will effect all users who are vesting
-    * @param _vestLength The new vest length in seconds
-    */
+    /// @inheritdoc IBlueberryStaking
     function setVestLength(uint256 _vestLength) external onlyOwner() {
         vestLength = _vestLength;
 
         emit VestLengthUpdated(_vestLength, block.timestamp);
     }
 
-    /**
-    * @notice Changes the base penalty ratio in proportion to 1e18
-    * @dev Will effect all users who are vesting
-    * @param _ratio The new base penalty ratio in percent
-    */
+    /// @inheritdoc IBlueberryStaking
     function setbasePenaltyRatioPercent(uint256 _ratio) external onlyOwner() {
         require(_ratio < 1e18, "Ratio must be below 100%");
         basePenaltyRatioPercent = _ratio;
@@ -805,10 +659,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit UsdcAddressUpdated(_usdc, _decimals, block.timestamp);
     }
 
-    /**
-    * @notice Changes the address of the treasury
-    * @param _treasury The new treasury address
-    */
+    /// @inheritdoc IBlueberryStaking
     function changeTreasuryAddress(address _treasury) external onlyOwner() {
         require(_treasury != address(0), "AddressZero");
         treasury = _treasury;
@@ -816,12 +667,7 @@ contract BlueberryStaking is Ownable, Pausable {
         emit TreasuryUpdated(_treasury, block.timestamp);
     }
 
-    /**
-    * @notice Changes the information for the uniswap pool to fetch the price of BLB
-    * @param _uniswapPool The new address of the uniswap pool
-    * @param _uniswapFactory The new address of the uniswap factory
-    * @param _observationPeriod The new observation period for the uniswap pool
-    */
+    /// @inheritdoc IBlueberryStaking
     function changeUniswapInformation(address _uniswapPool, address _uniswapFactory, uint32 _observationPeriod) external onlyOwner() {
         if (_uniswapPool == address(0) || _uniswapFactory == address(0)){
             revert AddressZero();
@@ -833,28 +679,16 @@ contract BlueberryStaking is Ownable, Pausable {
         observationPeriod = _observationPeriod;
     }
 
-    /**
-    * @notice Pauses the contract
-    */
+    /// @inheritdoc IBlueberryStaking
     function pause() external onlyOwner() {
         _pause();
     }
 
-    /**
-    * @notice Unpauses the contract
-    */
+    /// @inheritdoc IBlueberryStaking
     function unpause() external onlyOwner() {
         _unpause();
     }
 
-    /**
-     * @dev This function is called for plain Ether transfers, i.e. for every call with empty calldata.
-     */
     receive() external payable {}
-
-    /**
-     * @dev Fallback function is executed if none of the other functions match the function
-     * identifier or no data was provided with the function call.
-     */
     fallback() external payable {}
 }
