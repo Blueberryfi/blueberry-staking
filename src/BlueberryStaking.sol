@@ -100,7 +100,7 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     uint256 public deployedAt;
 
     // 35% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = .35e18;
+    uint256 public basePenaltyRatioPercent = .5e18;
 
     // USDC has 6 decimals- but this can be changed in case of depeg and new token set
     uint256 private _usdcDecimals = 6;
