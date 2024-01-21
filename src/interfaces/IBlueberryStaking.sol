@@ -109,6 +109,32 @@ interface IBlueberryStaking {
     event BLBUpdated(address blb, uint256 timestamp);
 
     /*//////////////////////////////////////////////////
+                         STRUCTS
+    //////////////////////////////////////////////////*/
+
+    /**
+     * @dev Struct to store info related to a vesting schedule
+     * @param amount The amount of tokens vested
+     * @param startTime The start time of the vesting schedule
+     * @param priceUnderlying The underlying token Price
+     */
+    struct Vest {
+        uint256 amount;
+        uint256 startTime;
+        uint256 priceUnderlying;
+    }
+
+    /**
+     * @dev Struct to store info related to a Epoch
+     * @param redistributedBLB The amount of BLB redistributed in the epoch
+     * @param totalBLB The total amount of BLB in the epoch
+     */
+    struct Epoch {
+        uint256 redistributedBLB;
+        uint256 totalBLB;
+    }
+
+    /*//////////////////////////////////////////////////
                          FUNCTIONS
     //////////////////////////////////////////////////*/
 

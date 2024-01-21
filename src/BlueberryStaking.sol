@@ -38,6 +38,7 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     /// @notice The Blueberry token contract
     IBlueberryToken public blb;
 
+    /// @notice The  token contract
     /// @notice The USDC token contract
     IERC20 public usdc;
 
@@ -112,16 +113,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
      */
     uint256 public epochLength = 1_209_600;
 
-    struct Vest {
-        uint256 amount;
-        uint256 startTime;
-        uint256 priceUnderlying;
-    }
-
-    struct Epoch {
-        uint256 redistributedBLB;
-        uint256 totalBLB;
-    }
+    /*//////////////////////////////////////////////////
+                        CONSTRUCTOR
+    //////////////////////////////////////////////////*/
 
     /**
      * @notice The constructor function, called when the contract is deployed
@@ -181,6 +175,7 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
         _;
     }
 
+    /// Contains the logic for updateReward function
     function _updateReward(address _user, address _bToken) internal {
         if (!isBToken[_bToken]) {
             revert InvalidBToken();
@@ -712,8 +707,8 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     }
 
     /**
-     * @notice Changes the address of usdc to an alternative in the event of a depeg
-     * @param _usdc The new usdc address
+     * @notice Changes the address of stable asset to an alternative in the event of a depeg
+     * @param _usdc The new stable asset address
      * @param _decimals The decimals of the new usdc
      */
     function changeusdcAddress(address _usdc, uint256 _decimals) external onlyOwner {
