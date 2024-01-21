@@ -36,9 +36,8 @@ contract BlueberryStakingTest is Test {
             return b - a <= 1e6;
         }
     }
-    
-    function setUp() public {
 
+    function setUp() public {
         // 0. Deploy the contracts
 
         vm.startPrank(owner);
@@ -57,7 +56,8 @@ contract BlueberryStakingTest is Test {
         existingBTokens[1] = address(mockbToken2);
         existingBTokens[2] = address(mockbToken3);
 
-        blueberryStaking = new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
+        blueberryStaking =
+            new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
 
         blb.transfer(address(blueberryStaking), 1e20);
 
@@ -78,12 +78,9 @@ contract BlueberryStakingTest is Test {
         mockUSDC.transfer(dan, 1e10);
 
         vm.stopPrank();
-        
     }
 
-
     function testVestYieldsRewardsCorrectlyForSingleStaker() public {
-
         // Temporary variables
 
         uint256[] memory rewardAmounts = new uint256[](1);
@@ -107,7 +104,7 @@ contract BlueberryStakingTest is Test {
         // 2. bob stakes 10 bToken1
 
         vm.startPrank(bob);
-        
+
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
@@ -130,7 +127,6 @@ contract BlueberryStakingTest is Test {
 
         skip(365 days);
 
-
         // 6. Complete vesting
 
         uint256[] memory indexes = new uint256[](1);
@@ -144,7 +140,7 @@ contract BlueberryStakingTest is Test {
         blueberryStaking.setRewardDuration(28 days);
 
         uint256[] memory rewardAmounts = new uint256[](1);
-        rewardAmounts[0] = 1e18 * 1_000;
+        rewardAmounts[0] = 1e18 * 1000;
 
         uint256[] memory stakeAmounts = new uint256[](1);
         stakeAmounts[0] = 1e18 * 50;
@@ -183,7 +179,6 @@ contract BlueberryStakingTest is Test {
     }
 
     function testVestYieldsRewardsCorrectlyForMultipleStakers() public {
-
         // Temporary variables
 
         uint256[] memory rewardAmounts = new uint256[](1);
@@ -207,7 +202,7 @@ contract BlueberryStakingTest is Test {
         // 2. Stake 10 bToken1 each
 
         vm.startPrank(bob);
-        
+
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
@@ -238,10 +233,12 @@ contract BlueberryStakingTest is Test {
 
         assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockbToken1)), rewardAmounts[0] / 3), true);
 
-        assertEq(isCloseEnough(blueberryStaking.earned(address(sally), address(mockbToken1)), rewardAmounts[0] / 3), true);
+        assertEq(
+            isCloseEnough(blueberryStaking.earned(address(sally), address(mockbToken1)), rewardAmounts[0] / 3), true
+        );
 
-        assertEq(isCloseEnough(blueberryStaking.earned(address(dan), address(mockbToken1)), rewardAmounts[0] / 3), true); 
-        
+        assertEq(isCloseEnough(blueberryStaking.earned(address(dan), address(mockbToken1)), rewardAmounts[0] / 3), true);
+
         // 4. Start vesting
 
         vm.startPrank(bob);
@@ -279,7 +276,6 @@ contract BlueberryStakingTest is Test {
     }
 
     function testUnstake() public {
-
         // Temporary variables
 
         uint256[] memory rewardAmounts = new uint256[](1);
@@ -303,7 +299,7 @@ contract BlueberryStakingTest is Test {
         // 2. bob stakes 10 bToken1
 
         vm.startPrank(bob);
-        
+
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);

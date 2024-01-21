@@ -19,7 +19,7 @@ contract Control is Test {
     address public treasury = address(0x1);
 
     address[] public existingBTokens;
-    
+
     // Initialize the contract and deploy necessary instances
     function setUp() public {
         // Deploy mock tokens and BlueberryToken
@@ -38,7 +38,8 @@ contract Control is Test {
         existingBTokens[2] = address(mockbToken3);
 
         // Deploy BlueberryStaking contract and transfer BLB tokens
-        blueberryStaking = new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
+        blueberryStaking =
+            new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
         blb.transfer(address(blueberryStaking), 1e27);
     }
 
