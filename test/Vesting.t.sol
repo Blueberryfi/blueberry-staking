@@ -147,7 +147,7 @@ contract BlueberryStakingTest is Test {
 
         console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
 
-        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 35);
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 25);
 
         skip(10 days);
 

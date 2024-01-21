@@ -94,13 +94,13 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     uint256 public finishAt;
     
     /// @notice The length of the vesting period
-    uint256 public vestLength = 365 days;
+    uint256 public vestLength = 52 weeks;
     
     /// @notice The deployment time of the contract
     uint256 public deployedAt;
 
-    // 35% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = .5e18;
+    // 25% at the start of each vesting period
+    uint256 public basePenaltyRatioPercent = .25e18;
 
     // USDC has 6 decimals- but this can be changed in case of depeg and new token set
     uint256 private _usdcDecimals = 6;
@@ -196,7 +196,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
-        require(_amounts.length == _bTokens.length, "Invalid length");
+        if ((_amounts.length) != _bTokens.length){
+            revert InvalidLength();
+        }
 
         for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
@@ -218,7 +220,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function unstake(address[] calldata _bTokens, uint256[] calldata _amounts) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
-        require(_amounts.length == _bTokens.length, "Invalid length");
+        if (_amounts.length != _bTokens.length){
+            revert InvalidLength();
+        }
 
         for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
@@ -244,14 +248,18 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
 
     modifier updateVests(address _user, uint256[] calldata _vestIndexes) {
-        require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
+        if (vesting[msg.sender].length < _vestIndexes.length){
+            revert InvalidLength();
+        }
 
         Vest[] storage vests = vesting[msg.sender];
 
         for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
 
-            require(vest.amount > 0, "Nothing to update");
+            if (vest.amount <= 0){
+                revert NothingToUpdate();
+            }
 
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
@@ -265,7 +273,10 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function startVesting(address[] calldata _bTokens) external whenNotPaused() updateRewards(msg.sender, _bTokens) {
-        require(canClaim(msg.sender), "Already claimed this epoch");
+        if (!canClaim(msg.sender)) {
+            revert AlreadyClaimed();
+        }
+
         uint256 _currentEpoch = currentEpoch();
 
         lastClaimedEpoch[msg.sender] = _currentEpoch;
@@ -283,7 +294,7 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
                 totalRewards += reward;
                 rewards[msg.sender][address(_bToken)] = 0;
 
-                // month 1: $0.04 / blb
+                // month 1: $0.02 / blb
                 uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(Vest(reward, block.timestamp, _priceUnderlying));
@@ -299,13 +310,17 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     function completeVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
 
         Vest[] storage vests = vesting[msg.sender];
-        require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
+        if (vesting[msg.sender].length < _vestIndexes.length) {
+            revert InvalidLength();
+        }
 
         uint256 totalbdblb;
         for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage v = vests[_vestIndexes[i]];
 
-            require(isVestingComplete(msg.sender, _vestIndexes[i]), "Vesting is not yet complete");
+            if (!isVestingComplete(msg.sender, _vestIndexes[i])) {
+                revert VestingIncomplete();
+            }
 
             totalbdblb += v.amount;
             delete vests[_vestIndexes[i]];
@@ -321,10 +336,14 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     /// @inheritdoc IBlueberryStaking
     function accelerateVesting(uint256[] calldata _vestIndexes) external whenNotPaused() updateVests(msg.sender, _vestIndexes) {
         // index must exist
-        require(vesting[msg.sender].length >= _vestIndexes.length, "Invalid length");
+        if (vesting[msg.sender].length < _vestIndexes.length) {
+            revert InvalidLength();
+        }
 
         // lockdrop period must be complete i.e 2 months
-        require(block.timestamp > deployedAt + 5_259_492, "Lockdrop period not complete");
+        if (block.timestamp < deployedAt + 60 days){
+            revert LockdropIncomplete();
+        }
 
         Vest[] storage vests = vesting[msg.sender];
 
@@ -336,7 +355,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
             Vest storage _vest = vests[_vestIndex];
             uint256 _vestAmount = _vest.amount;
 
-            require(_vestAmount > 0, "No BLB to accelerate");
+            if (_vestAmount <= 0){
+                revert NothingToUpdate();
+            }
 
             uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(msg.sender, _vestIndex);
 
@@ -389,7 +410,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
         IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
 
         // max 5 days
-        require(_secondsInPast <= 432_000, "Pool does not have requested observation");
+        if(_secondsInPast >= 432_000){
+            revert InvalidObservationTime();
+        }
 
         uint32[] memory _secondsArray = new uint32[](2);
 
@@ -431,13 +454,13 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
         uint256 _month = (block.timestamp - deployedAt) / 30 days;
-
+        // month 1: $0.02 / blb
         if (_month <= 1){
-            _price = .04e18;
+            _price = .02e18;
         }
-        // month 2: $0.08 / blb
+        // month 2: $0.04 / blb
         else if (_month <= 2 || uniswapV3Pool == address(0)) {
-            _price = .08e18;
+            _price = .04e18;
         }
         // month 3+ 
         else {
@@ -552,7 +575,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function changeBLB(address _blb) external onlyOwner() {
-        require(_blb != address(0), "AddressZero");
+        if(_blb == address(0)){
+            revert AddressZero();
+        }
         blb = IBlueberryToken(_blb);
 
         emit BLBUpdated(_blb, block.timestamp);
@@ -560,7 +585,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function changeEpochLength(uint256 _epochLength) external onlyOwner() {
-        require(_epochLength > 0, "EpochLengthZero");
+        if(_epochLength == 0){
+            revert EpochLengthZero();
+        }
         epochLength = _epochLength;
 
         emit EpochLengthUpdated(_epochLength, block.timestamp);
@@ -574,7 +601,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
                 revert AddressZero();
             }
 
-            require(!isBToken[_bTokens[i]], "Already a bToken");
+            if(isBToken[_bTokens[i]]){
+                revert BTokenAlreadyExists();
+            }
 
             isBToken[_bTokens[i]] = true;
             
@@ -591,7 +620,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
                 revert AddressZero();
             }
 
-            require(isBToken[_bTokens[i]], "Not a bToken");
+            if(!isBToken[_bTokens[i]]){
+                revert BTokenDoesNotExist();
+            }
 
             isBToken[_bTokens[i]] = false;
         }
@@ -601,7 +632,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function notifyRewardAmount(address[] calldata _bTokens, uint256[] calldata _amounts) external onlyOwner() updateRewards(address(0), _bTokens) {
-        require(_amounts.length == _bTokens.length, "Invalid length");
+        if(_amounts.length != _bTokens.length){
+            revert InvalidLength();
+        }
 
         for (uint256 i; i < _bTokens.length; ++i) {
             address _bToken = _bTokens[i];
@@ -615,7 +648,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
                 rewardRate[_bToken] = (_amount + leftover) / rewardDuration;
             }
 
-            require(rewardRate[_bToken] > 0, "Invalid reward rate");
+            if(rewardRate[_bToken] == 0){
+                revert InvalidRewardRate();
+            }
 
             finishAt = block.timestamp + rewardDuration;
             lastUpdateTime[_bToken] = block.timestamp;
@@ -640,7 +675,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function setbasePenaltyRatioPercent(uint256 _ratio) external onlyOwner() {
-        require(_ratio < 1e18, "Ratio must be below 100%");
+        if(_ratio > 1e18){
+            revert InvalidPenaltyRatio();
+        }
         basePenaltyRatioPercent = _ratio;
 
         emit BasePenaltyRatioChanged(_ratio, block.timestamp);
@@ -652,7 +689,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
     * @param _decimals The decimals of the new usdc
     */
     function changeusdcAddress(address _usdc, uint256 _decimals) external onlyOwner() {
-        require(_usdc != address(0), "AddressZero");
+        if(_usdc == address(0)){
+            revert AddressZero();
+        }
         usdc = IERC20(_usdc);
         _usdcDecimals = _decimals;
 
@@ -661,7 +700,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
 
     /// @inheritdoc IBlueberryStaking
     function changeTreasuryAddress(address _treasury) external onlyOwner() {
-        require(_treasury != address(0), "AddressZero");
+        if(_treasury == address(0)){
+            revert AddressZero();
+        }
         treasury = _treasury;
 
         emit TreasuryUpdated(_treasury, block.timestamp);
@@ -672,7 +713,9 @@ contract BlueberryStaking is Ownable, Pausable, IBlueberryStaking {
         if (_uniswapPool == address(0) || _uniswapFactory == address(0)){
             revert AddressZero();
         }
-        require(_observationPeriod > 0, "Invalid observation time");
+        if (_observationPeriod == 0){
+            revert InvalidObservationTime();
+        }
 
         uniswapV3Pool = _uniswapPool;
         uniswapV3Factory = _uniswapFactory;

@@ -73,6 +73,8 @@ interface IBlueberryStaking {
 
     error BTokenDoesNotExist();
 
+    error EpochLengthZero();
+
     /*//////////////////////////////////////////////////
                          EVENTS
     //////////////////////////////////////////////////*/
