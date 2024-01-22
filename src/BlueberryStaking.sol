@@ -10,9 +10,8 @@
 
 pragma solidity 0.8.22;
 
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {PausableUpgradeable} from "openzeppelin-contracts/contracts/utils/PausableUpgradeable.sol";
-import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {IERC20} from "@openzeppelin-contracts/interfaces/IERC20.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import "v3-core/interfaces/IUniswapV3Pool.sol";

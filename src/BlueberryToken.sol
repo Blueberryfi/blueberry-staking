@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.22;
 
-import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IBlueberryToken, IERC20Upgrable} from "./interfaces/IBlueberryToken.sol";
 
 contract BlueberryToken is IBlueberryToken {
-    using SafeERC20Upgradeable for IERC20Upgrable;
+    using SafeERC20Upgradeable for IERC20Upgadable;
 
     // EIP-20 token name for this token
     string public constant override name = "Blueberry";
