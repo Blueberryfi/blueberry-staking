@@ -4,8 +4,8 @@ pragma solidity 0.8.22;
 import "../lib/forge-std/src/Test.sol";
 import "../src/BlueberryStaking.sol";
 import "../src/BlueberryToken.sol";
-import "../src/MockbToken.sol";
-import "../src/MockUSDC.sol";
+import "./mocks/MockbToken.sol";
+import "./mocks/MockUSDC.sol";
 
 contract Control is Test {
     BlueberryStaking blueberryStaking;

@@ -9,7 +9,7 @@
 */
 pragma solidity 0.8.22;
 
-import "./IBlueberryToken.sol";
+import {IBlueberryToken} from "./IBlueberryToken.sol";
 
 interface IBlueberryStaking {
     /*//////////////////////////////////////////////////

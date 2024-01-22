@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.22;
 
-import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {IERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20PermitUpgradeable.sol";
 
-interface IBlueberryToken is IERC20, IERC20Permit {
+interface IBlueberryToken is IERC20Upgradeable, IERC20PermitUpgradeable {
     // EIP-20 token name for this token
     function name() external view returns (string memory);
 
@@ -30,7 +30,10 @@ interface IBlueberryToken is IERC20, IERC20Permit {
     function delegates(address) external view returns (address);
 
     // A record of votes checkpoints for each account, by index
-    function checkpoints(address, uint32) external view returns (uint32, uint96);
+    function checkpoints(
+        address,
+        uint32
+    ) external view returns (uint32, uint96);
 
     // The number of checkpoints for each account
     function numCheckpoints(address) external view returns (uint32);
@@ -48,10 +51,18 @@ interface IBlueberryToken is IERC20, IERC20Permit {
     event MinterChanged(address minter, address newMinter);
 
     // An event thats emitted when an account changes its delegate
-    event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+    event DelegateChanged(
+        address indexed delegator,
+        address indexed fromDelegate,
+        address indexed toDelegate
+    );
 
     // An event thats emitted when a delegate account's vote balance changes
-    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
+    event DelegateVotesChanged(
+        address indexed delegate,
+        uint256 previousBalance,
+        uint256 newBalance
+    );
 
     /**
      * @notice Change the minter address
@@ -81,7 +92,14 @@ interface IBlueberryToken is IERC20, IERC20Permit {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
+    function delegateBySig(
+        address delegatee,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
 
     /**
      * @notice Gets the current votes balance for `account`
@@ -97,5 +115,8 @@ interface IBlueberryToken is IERC20, IERC20Permit {
      * @param blockNumber The block number to get the vote balance at
      * @return The number of votes the account had as of the given block
      */
-    function getPriorVotes(address account, uint256 blockNumber) external view returns (uint96);
+    function getPriorVotes(
+        address account,
+        uint256 blockNumber
+    ) external view returns (uint96);
 }

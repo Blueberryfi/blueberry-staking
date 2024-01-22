@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.22;
 
-import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./interfaces/IBlueberryToken.sol";
+import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {IBlueberryToken, IERC20Upgrable} from "./interfaces/IBlueberryToken.sol";
 
 contract BlueberryToken is IBlueberryToken {
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgrable;
 
     // EIP-20 token name for this token
     string public constant override name = "Blueberry";
@@ -54,14 +54,18 @@ contract BlueberryToken is IBlueberryToken {
     }
 
     // A record of votes checkpoints for each account, by index
-    mapping(address => mapping(uint32 => Checkpoint)) public override checkpoints;
+    mapping(address => mapping(uint32 => Checkpoint))
+        public
+        override checkpoints;
 
     // The number of checkpoints for each account
     mapping(address => uint32) public override numCheckpoints;
 
     // The EIP-712 typehash for the contract's domain
     bytes32 public constant override DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+        keccak256(
+            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+        );
 
     // The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant override DELEGATION_TYPEHASH =
@@ -69,32 +73,45 @@ contract BlueberryToken is IBlueberryToken {
 
     // The EIP-712 typehash for the permit struct used by the contract
     bytes32 public constant override PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     // A record of states for signing / validating signatures
     mapping(address => uint256) public override nonces;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Construct a new Blueberry token
-     * @param account The initial account to grant 1 billion tokens
+     * @param account_ The initial account to grant 1 billion tokens
      * @param minter_ The account with minting ability
      * @param mintingAllowedAfter_ The timestamp after which inflationary minting may occur
+     * @param admin_ The admin address
      */
-    constructor(address account, address minter_, uint256 mintingAllowedAfter_) {
+    function initialize(
+        address account_,
+        address minter_,
+        uint256 mintingAllowedAfter_,
+        address admin_
+    ) Ownable2Step(admin_) initializer {
         require(
             mintingAllowedAfter_ >= block.timestamp,
             "BlueberryToken.constructor: minting can only begin after deployment"
         );
         require(
-            account != NULL_ADDRESS && minter_ != NULL_ADDRESS,
+            account_ != NULL_ADDRESS && minter_ != NULL_ADDRESS,
             "BlueberryToken.constructor: cannot init with zero addresses"
         );
 
-        balances[account] = uint96(totalSupply);
+        balances[account_] = uint96(totalSupply);
         minter = minter_;
         mintingAllowedAfter = mintingAllowedAfter_;
 
-        emit Transfer(NULL_ADDRESS, account, totalSupply);
+        emit Transfer(NULL_ADDRESS, account_, totalSupply);
         emit MinterChanged(NULL_ADDRESS, minter);
     }
 
@@ -103,8 +120,14 @@ contract BlueberryToken is IBlueberryToken {
      * @param minter_ The address of the new minter
      */
     function setMinter(address minter_) external override {
-        require(msg.sender == minter, "BlueberryToken.setMinter: only the minter can change the minter address");
-        require(minter_ != NULL_ADDRESS, "BlueberryToken.setMinter: cannot use zero address");
+        require(
+            msg.sender == minter,
+            "BlueberryToken.setMinter: only the minter can change the minter address"
+        );
+        require(
+            minter_ != NULL_ADDRESS,
+            "BlueberryToken.setMinter: cannot use zero address"
+        );
         emit MinterChanged(minter, minter_);
         minter = minter_;
     }
@@ -115,20 +138,44 @@ contract BlueberryToken is IBlueberryToken {
      * @param amount The number of tokens to be minted
      */
     function mint(address dst, uint256 amount) external override {
-        require(msg.sender == minter, "BlueberryToken.mint: only the minter can mint");
-        require(block.timestamp >= mintingAllowedAfter, "BlueberryToken.mint: minting not allowed yet");
-        require(dst != NULL_ADDRESS, "BlueberryToken.mint: cannot transfer to the zero address");
+        require(
+            msg.sender == minter,
+            "BlueberryToken.mint: only the minter can mint"
+        );
+        require(
+            block.timestamp >= mintingAllowedAfter,
+            "BlueberryToken.mint: minting not allowed yet"
+        );
+        require(
+            dst != NULL_ADDRESS,
+            "BlueberryToken.mint: cannot transfer to the zero address"
+        );
 
         // record the mint
         mintingAllowedAfter = block.timestamp + minimumTimeBetweenMints;
 
         // mint the amount
-        uint96 amount96 = safe96(amount, "BlueberryToken.mint: amount exceeds 96 bits");
-        require(amount <= (totalSupply * mintCap) / PERCENT, "BlueberryToken.mint: exceeded mint cap");
-        totalSupply = uint256(safe96(totalSupply + amount, "BlueberryToken.mint: totalSupply exceeds 96 bits"));
+        uint96 amount96 = safe96(
+            amount,
+            "BlueberryToken.mint: amount exceeds 96 bits"
+        );
+        require(
+            amount <= (totalSupply * mintCap) / PERCENT,
+            "BlueberryToken.mint: exceeded mint cap"
+        );
+        totalSupply = uint256(
+            safe96(
+                totalSupply + amount,
+                "BlueberryToken.mint: totalSupply exceeds 96 bits"
+            )
+        );
 
         // transfer the amount to the recipient
-        balances[dst] = add96(balances[dst], amount96, "BlueberryToken.mint: destination balance overflows");
+        balances[dst] = add96(
+            balances[dst],
+            amount96,
+            "BlueberryToken.mint: destination balance overflows"
+        );
         emit Transfer(NULL_ADDRESS, dst, amount);
 
         // move delegates
@@ -141,7 +188,10 @@ contract BlueberryToken is IBlueberryToken {
      * @param _spender The address of the account spending the funds
      * @return The number of tokens approved
      */
-    function allowance(address _owner, address _spender) external view override returns (uint256) {
+    function allowance(
+        address _owner,
+        address _spender
+    ) external view override returns (uint256) {
         return uint256(allowances[_owner][_spender]);
     }
 
@@ -153,12 +203,18 @@ contract BlueberryToken is IBlueberryToken {
      * @param _value The number of tokens that are approved (2^256-1 means infinite)
      * @return Whether or not the approval succeeded
      */
-    function approve(address _spender, uint256 _value) external override returns (bool) {
+    function approve(
+        address _spender,
+        uint256 _value
+    ) external override returns (bool) {
         uint96 amount;
         if (_value == type(uint256).max) {
             amount = type(uint96).max;
         } else {
-            amount = safe96(_value, "BlueberryToken.approve: amount exceeds 96 bits");
+            amount = safe96(
+                _value,
+                "BlueberryToken.approve: amount exceeds 96 bits"
+            );
         }
 
         allowances[msg.sender][_spender] = amount;
@@ -172,7 +228,15 @@ contract BlueberryToken is IBlueberryToken {
      * @return domain separator
      */
     function DOMAIN_SEPARATOR() public view override returns (bytes32) {
-        return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
+        return
+            keccak256(
+                abi.encode(
+                    DOMAIN_TYPEHASH,
+                    keccak256(bytes(name)),
+                    getChainId(),
+                    address(this)
+                )
+            );
     }
 
     /**
@@ -185,24 +249,48 @@ contract BlueberryToken is IBlueberryToken {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function permit(address owner, address spender, uint256 rawAmount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-        external
-        override
-    {
+    function permit(
+        address owner,
+        address spender,
+        uint256 rawAmount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override {
         uint96 amount;
         if (rawAmount == type(uint256).max) {
             amount = type(uint96).max;
         } else {
-            amount = safe96(rawAmount, "BlueberryToken.permit: amount exceeds 96 bits");
+            amount = safe96(
+                rawAmount,
+                "BlueberryToken.permit: amount exceeds 96 bits"
+            );
         }
 
-        bytes32 structHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, rawAmount, nonces[owner]++, deadline));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                owner,
+                spender,
+                rawAmount,
+                nonces[owner]++,
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash)
+        );
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != NULL_ADDRESS, "BlueberryToken.permit: invalid signature");
+        require(
+            signatory != NULL_ADDRESS,
+            "BlueberryToken.permit: invalid signature"
+        );
         require(signatory == owner, "BlueberryToken.permit: unauthorized");
-        require(block.timestamp <= deadline, "BlueberryToken.permit: signature expired");
+        require(
+            block.timestamp <= deadline,
+            "BlueberryToken.permit: signature expired"
+        );
 
         allowances[owner][spender] = amount;
 
@@ -214,7 +302,9 @@ contract BlueberryToken is IBlueberryToken {
      * @param _owner The address of the account to get the balance of
      * @return The number of tokens held
      */
-    function balanceOf(address _owner) external view override returns (uint256) {
+    function balanceOf(
+        address _owner
+    ) external view override returns (uint256) {
         return uint256(balances[_owner]);
     }
 
@@ -224,8 +314,14 @@ contract BlueberryToken is IBlueberryToken {
      * @param _value The number of tokens to transfer
      * @return Whether or not the transfer succeeded
      */
-    function transfer(address _to, uint256 _value) external override returns (bool) {
-        uint96 amount = safe96(_value, "BlueberryToken.transfer: amount exceeds 96 bits");
+    function transfer(
+        address _to,
+        uint256 _value
+    ) external override returns (bool) {
+        uint96 amount = safe96(
+            _value,
+            "BlueberryToken.transfer: amount exceeds 96 bits"
+        );
         _transferTokens(msg.sender, _to, amount);
         return true;
     }
@@ -237,14 +333,23 @@ contract BlueberryToken is IBlueberryToken {
      * @param _value The number of tokens to transfer
      * @return Whether or not the transfer succeeded
      */
-    function transferFrom(address _from, address _to, uint256 _value) external override returns (bool) {
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    ) external override returns (bool) {
         address spender = msg.sender;
         uint96 spenderAllowance = allowances[_from][spender];
-        uint96 amount96 = safe96(_value, "BlueberryToken.approve: amount exceeds 96 bits");
+        uint96 amount96 = safe96(
+            _value,
+            "BlueberryToken.approve: amount exceeds 96 bits"
+        );
 
         if (spender != _from && spenderAllowance != type(uint96).max) {
             uint96 newAllowance = sub96(
-                spenderAllowance, amount96, "BlueberryToken.transferFrom: transfer amount exceeds spender allowance"
+                spenderAllowance,
+                amount96,
+                "BlueberryToken.transferFrom: transfer amount exceeds spender allowance"
             );
             allowances[_from][spender] = newAllowance;
 
@@ -272,16 +377,33 @@ contract BlueberryToken is IBlueberryToken {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s)
-        public
-        override
-    {
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash));
+    function delegateBySig(
+        address delegatee,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public override {
+        bytes32 structHash = keccak256(
+            abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash)
+        );
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != NULL_ADDRESS, "BlueberryToken.delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "BlueberryToken.delegateBySig: invalid nonce");
-        require(block.timestamp <= expiry, "BlueberryToken.delegateBySig: signature expired");
+        require(
+            signatory != NULL_ADDRESS,
+            "BlueberryToken.delegateBySig: invalid signature"
+        );
+        require(
+            nonce == nonces[signatory]++,
+            "BlueberryToken.delegateBySig: invalid nonce"
+        );
+        require(
+            block.timestamp <= expiry,
+            "BlueberryToken.delegateBySig: signature expired"
+        );
         return _delegate(signatory, delegatee);
     }
 
@@ -290,9 +412,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param account The address to get votes balance
      * @return The number of current votes for `account`
      */
-    function getCurrentVotes(address account) external view override returns (uint96) {
+    function getCurrentVotes(
+        address account
+    ) external view override returns (uint96) {
         uint32 nCheckpoints = numCheckpoints[account];
-        return nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
+        return
+            nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
     }
 
     /**
@@ -302,8 +427,14 @@ contract BlueberryToken is IBlueberryToken {
      * @param blockNumber The block number to get the vote balance at
      * @return The number of votes the account had as of the given block
      */
-    function getPriorVotes(address account, uint256 blockNumber) public view override returns (uint96) {
-        require(blockNumber < block.number, "BlueberryToken.getPriorVotes: not yet determined");
+    function getPriorVotes(
+        address account,
+        uint256 blockNumber
+    ) public view override returns (uint96) {
+        require(
+            blockNumber < block.number,
+            "BlueberryToken.getPriorVotes: not yet determined"
+        );
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -358,11 +489,25 @@ contract BlueberryToken is IBlueberryToken {
      * @param amount The number of tokens to transfer
      */
     function _transferTokens(address src, address dst, uint96 amount) internal {
-        require(src != NULL_ADDRESS, "BlueberryToken._transferTokens: cannot transfer from the zero address");
-        require(dst != NULL_ADDRESS, "BlueberryToken._transferTokens: cannot transfer to the zero address");
+        require(
+            src != NULL_ADDRESS,
+            "BlueberryToken._transferTokens: cannot transfer from the zero address"
+        );
+        require(
+            dst != NULL_ADDRESS,
+            "BlueberryToken._transferTokens: cannot transfer to the zero address"
+        );
 
-        balances[src] = sub96(balances[src], amount, "BlueberryToken._transferTokens: transfer amount exceeds balance");
-        balances[dst] = add96(balances[dst], amount, "BlueberryToken._transferTokens: transfer amount overflows");
+        balances[src] = sub96(
+            balances[src],
+            amount,
+            "BlueberryToken._transferTokens: transfer amount exceeds balance"
+        );
+        balances[dst] = add96(
+            balances[dst],
+            amount,
+            "BlueberryToken._transferTokens: transfer amount overflows"
+        );
         emit Transfer(src, dst, amount);
 
         _moveDelegates(delegates[src], delegates[dst], amount);
@@ -374,19 +519,35 @@ contract BlueberryToken is IBlueberryToken {
      * @param dstRep The address to delegate votes to
      * @param amount The number of tokens to delegate
      */
-    function _moveDelegates(address srcRep, address dstRep, uint96 amount) internal {
+    function _moveDelegates(
+        address srcRep,
+        address dstRep,
+        uint96 amount
+    ) internal {
         if (srcRep != dstRep && amount > 0) {
             if (srcRep != NULL_ADDRESS) {
                 uint32 srcRepNum = numCheckpoints[srcRep];
-                uint96 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
-                uint96 srcRepNew = sub96(srcRepOld, amount, "BlueberryToken._moveVotes: vote amount underflows");
+                uint96 srcRepOld = srcRepNum > 0
+                    ? checkpoints[srcRep][srcRepNum - 1].votes
+                    : 0;
+                uint96 srcRepNew = sub96(
+                    srcRepOld,
+                    amount,
+                    "BlueberryToken._moveVotes: vote amount underflows"
+                );
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
 
             if (dstRep != NULL_ADDRESS) {
                 uint32 dstRepNum = numCheckpoints[dstRep];
-                uint96 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
-                uint96 dstRepNew = add96(dstRepOld, amount, "BlueberryToken._moveVotes: vote amount overflows");
+                uint96 dstRepOld = dstRepNum > 0
+                    ? checkpoints[dstRep][dstRepNum - 1].votes
+                    : 0;
+                uint96 dstRepNew = add96(
+                    dstRepOld,
+                    amount,
+                    "BlueberryToken._moveVotes: vote amount overflows"
+                );
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
         }
@@ -399,17 +560,35 @@ contract BlueberryToken is IBlueberryToken {
      * @param oldVotes Old number of votes
      * @param newVotes New number of votes
      */
-    function _writeCheckpoint(address delegatee, uint32 nCheckpoints, uint96 oldVotes, uint96 newVotes) internal {
-        uint32 blockNumber = safe32(block.number, "BlueberryToken._writeCheckpoint: block number exceeds 32 bits");
+    function _writeCheckpoint(
+        address delegatee,
+        uint32 nCheckpoints,
+        uint96 oldVotes,
+        uint96 newVotes
+    ) internal {
+        uint32 blockNumber = safe32(
+            block.number,
+            "BlueberryToken._writeCheckpoint: block number exceeds 32 bits"
+        );
 
-        if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
+        if (
+            nCheckpoints > 0 &&
+            checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber
+        ) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
         } else {
-            checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newVotes);
+            checkpoints[delegatee][nCheckpoints] = Checkpoint(
+                blockNumber,
+                newVotes
+            );
             numCheckpoints[delegatee] = nCheckpoints + 1;
         }
 
-        emit DelegateVotesChanged(delegatee, uint256(oldVotes), uint256(newVotes));
+        emit DelegateVotesChanged(
+            delegatee,
+            uint256(oldVotes),
+            uint256(newVotes)
+        );
     }
 
     /**
@@ -418,7 +597,10 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return converted unit32 number
      */
-    function safe32(uint256 n, string memory errorMessage) internal pure returns (uint32) {
+    function safe32(
+        uint256 n,
+        string memory errorMessage
+    ) internal pure returns (uint32) {
         require(n < 2 ** 32, errorMessage);
         return uint32(n);
     }
@@ -429,7 +611,10 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return converted unit96 number
      */
-    function safe96(uint256 n, string memory errorMessage) internal pure returns (uint96) {
+    function safe96(
+        uint256 n,
+        string memory errorMessage
+    ) internal pure returns (uint96) {
         require(n < 2 ** 96, errorMessage);
         return uint96(n);
     }
@@ -441,7 +626,11 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return the result of the addition
      */
-    function add96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
+    function add96(
+        uint96 a,
+        uint96 b,
+        string memory errorMessage
+    ) internal pure returns (uint96) {
         uint96 c = a + b;
         require(c >= a, errorMessage);
         return c;
@@ -454,7 +643,11 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return the result of the subtraction
      */
-    function sub96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
+    function sub96(
+        uint96 a,
+        uint96 b,
+        string memory errorMessage
+    ) internal pure returns (uint96) {
         require(b <= a, errorMessage);
         return a - b;
     }
