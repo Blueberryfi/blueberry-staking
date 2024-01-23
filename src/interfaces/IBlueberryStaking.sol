@@ -102,7 +102,7 @@ interface IBlueberryStaking {
 
     event TreasuryUpdated(address treasury, uint256 timestamp);
 
-    event UsdcAddressUpdated(address usdc, uint256 decimals, uint256 timestamp);
+    event StableAssetUpdated(address asset, uint256 decimals, uint256 timestamp);
 
     event VestLengthUpdated(uint256 vestLength, uint256 timestamp);
 
@@ -186,14 +186,14 @@ interface IBlueberryStaking {
     //////////////////////////////////////////////////*/
 
     /**
-     * @notice gets the TWAP price for BLB in USDC
+     * @notice gets the TWAP price for BLB in StableAsset
      * @param _secondsInPast The amount of seconds in the past to get the TWAP for
      * @return The TWAP price
      */
     function fetchTWAP(uint32 _secondsInPast) external view returns (uint256);
 
     /**
-     * @notice gets the current price for BLB in USDC
+     * @notice gets the current price for BLB in StableAsset
      * @return _price The current price using 6 decimal points
      */
     function getPrice() external view returns (uint256 _price);
@@ -246,7 +246,7 @@ interface IBlueberryStaking {
      * @param _vestingScheduleIndex The index of the vesting schedule.
      * @return accelerationFee The current acceleration fee ratio.
      */
-    function getAccelerationFeeUSDC(address _user, uint256 _vestingScheduleIndex)
+    function getAccelerationFeeStableAsset(address _user, uint256 _vestingScheduleIndex)
         external
         view
         returns (uint256 accelerationFee);
@@ -281,7 +281,7 @@ interface IBlueberryStaking {
      * @dev Will effect all users who are vesting
      * @param _ratio The new base penalty ratio in wei
      */
-    function setbasePenaltyRatioPercent(uint256 _ratio) external;
+    function setBasePenaltyRatioPercent(uint256 _ratio) external;
 
     /**
      * @notice Changes the address of the treasury
