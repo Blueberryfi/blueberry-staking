@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity >=0.4.0 <0.9.0;
 
 import "../lib/forge-std/src/Test.sol";
-import "../src/BlueberryStaking.sol";
-import "../src/BlueberryToken.sol";
-import "./mocks/MockbToken.sol";
-import "./mocks/MockUSDC.sol";
+import {BlueberryStaking} from "../src/BlueberryStaking.sol";
+import {BlueberryToken} from "../src/BlueberryToken.sol";
+import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking public blueberryStaking;
@@ -59,8 +60,9 @@ contract BlueberryStakingTest is Test {
         existingBTokens[1] = address(mockbToken2);
         existingBTokens[2] = address(mockbToken3);
 
-        blueberryStaking =
-            new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
+        blueberryStaking = new BlueberryStaking();
+
+        blueberryStaking.initialize(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens, owner);
 
         blb.transfer(address(blueberryStaking), 1e20);
 

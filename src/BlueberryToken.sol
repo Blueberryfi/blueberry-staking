@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.16;
 
-import {IBlueberryToken, IERC20Upgrable} from "./interfaces/IBlueberryToken.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./interfaces/IBlueberryToken.sol";
 
 contract BlueberryToken is IBlueberryToken {
-    using SafeERC20Upgradeable for IERC20Upgadable;
+    using SafeERC20 for IERC20;
 
     // EIP-20 token name for this token
     string public constant override name = "Blueberry";
@@ -79,38 +80,31 @@ contract BlueberryToken is IBlueberryToken {
     // A record of states for signing / validating signatures
     mapping(address => uint256) public override nonces;
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
     /**
      * @notice Construct a new Blueberry token
-     * @param account_ The initial account to grant 1 billion tokens
+     * @param account The initial account to grant 1 billion tokens
      * @param minter_ The account with minting ability
      * @param mintingAllowedAfter_ The timestamp after which inflationary minting may occur
-     * @param admin_ The admin address
      */
-    function initialize(
-        address account_,
+    constructor(
+        address account,
         address minter_,
-        uint256 mintingAllowedAfter_,
-        address admin_
-    ) Ownable2Step(admin_) initializer {
+        uint256 mintingAllowedAfter_
+    ) {
         require(
             mintingAllowedAfter_ >= block.timestamp,
             "BlueberryToken.constructor: minting can only begin after deployment"
         );
         require(
-            account_ != NULL_ADDRESS && minter_ != NULL_ADDRESS,
+            account != NULL_ADDRESS && minter_ != NULL_ADDRESS,
             "BlueberryToken.constructor: cannot init with zero addresses"
         );
 
-        balances[account_] = uint96(totalSupply);
+        balances[account] = uint96(totalSupply);
         minter = minter_;
         mintingAllowedAfter = mintingAllowedAfter_;
 
-        emit Transfer(NULL_ADDRESS, account_, totalSupply);
+        emit Transfer(NULL_ADDRESS, account, totalSupply);
         emit MinterChanged(NULL_ADDRESS, minter);
     }
 
@@ -187,10 +181,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param _spender The address of the account spending the funds
      * @return The number of tokens approved
      */
-    function allowance(
-        address _owner,
-        address _spender
-    ) external view override returns (uint256) {
+    function allowance(address _owner, address _spender)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return uint256(allowances[_owner][_spender]);
     }
 
@@ -202,10 +198,11 @@ contract BlueberryToken is IBlueberryToken {
      * @param _value The number of tokens that are approved (2^256-1 means infinite)
      * @return Whether or not the approval succeeded
      */
-    function approve(
-        address _spender,
-        uint256 _value
-    ) external override returns (bool) {
+    function approve(address _spender, uint256 _value)
+        external
+        override
+        returns (bool)
+    {
         uint96 amount;
         if (_value == type(uint256).max) {
             amount = type(uint96).max;
@@ -301,9 +298,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param _owner The address of the account to get the balance of
      * @return The number of tokens held
      */
-    function balanceOf(
-        address _owner
-    ) external view override returns (uint256) {
+    function balanceOf(address _owner)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return uint256(balances[_owner]);
     }
 
@@ -313,10 +313,11 @@ contract BlueberryToken is IBlueberryToken {
      * @param _value The number of tokens to transfer
      * @return Whether or not the transfer succeeded
      */
-    function transfer(
-        address _to,
-        uint256 _value
-    ) external override returns (bool) {
+    function transfer(address _to, uint256 _value)
+        external
+        override
+        returns (bool)
+    {
         uint96 amount = safe96(
             _value,
             "BlueberryToken.transfer: amount exceeds 96 bits"
@@ -411,9 +412,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param account The address to get votes balance
      * @return The number of current votes for `account`
      */
-    function getCurrentVotes(
-        address account
-    ) external view override returns (uint96) {
+    function getCurrentVotes(address account)
+        external
+        view
+        override
+        returns (uint96)
+    {
         uint32 nCheckpoints = numCheckpoints[account];
         return
             nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
@@ -426,10 +430,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param blockNumber The block number to get the vote balance at
      * @return The number of votes the account had as of the given block
      */
-    function getPriorVotes(
-        address account,
-        uint256 blockNumber
-    ) public view override returns (uint96) {
+    function getPriorVotes(address account, uint256 blockNumber)
+        public
+        view
+        override
+        returns (uint96)
+    {
         require(
             blockNumber < block.number,
             "BlueberryToken.getPriorVotes: not yet determined"
@@ -487,7 +493,11 @@ contract BlueberryToken is IBlueberryToken {
      * @param dst The address of the destination account
      * @param amount The number of tokens to transfer
      */
-    function _transferTokens(address src, address dst, uint96 amount) internal {
+    function _transferTokens(
+        address src,
+        address dst,
+        uint96 amount
+    ) internal {
         require(
             src != NULL_ADDRESS,
             "BlueberryToken._transferTokens: cannot transfer from the zero address"
@@ -596,11 +606,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return converted unit32 number
      */
-    function safe32(
-        uint256 n,
-        string memory errorMessage
-    ) internal pure returns (uint32) {
-        require(n < 2 ** 32, errorMessage);
+    function safe32(uint256 n, string memory errorMessage)
+        internal
+        pure
+        returns (uint32)
+    {
+        require(n < 2**32, errorMessage);
         return uint32(n);
     }
 
@@ -610,11 +621,12 @@ contract BlueberryToken is IBlueberryToken {
      * @param errorMessage error raised during the conversion
      * @return converted unit96 number
      */
-    function safe96(
-        uint256 n,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
-        require(n < 2 ** 96, errorMessage);
+    function safe96(uint256 n, string memory errorMessage)
+        internal
+        pure
+        returns (uint96)
+    {
+        require(n < 2**96, errorMessage);
         return uint96(n);
     }
 

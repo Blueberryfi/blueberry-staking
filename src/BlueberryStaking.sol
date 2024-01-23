@@ -8,31 +8,32 @@
 ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
 */
 
-pragma solidity 0.8.22;
+pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin-contracts/interfaces/IERC20.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {PausableUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/security/PausableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import "v3-core/interfaces/IUniswapV3Pool.sol";
+import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import "v3-core/libraries/TickMath.sol";
 import "v3-core/libraries/FullMath.sol";
 import "v3-core/libraries/FixedPoint96.sol";
 
-import {IBlueberryToken} from "./interfaces/IBlueberryToken.sol";
+import {IBlueberryToken, IERC20} from "./interfaces/IBlueberryToken.sol";
 import {IBlueberryStaking} from "./interfaces/IBlueberryStaking.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
- * @author Blueberry protocol @haruxeETH
+ * @author Blueberry Protocol
  */
 contract BlueberryStaking is
     IBlueberryStaking,
     Ownable2StepUpgradeable,
-    Pausable
+    PausableUpgradeable
 {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////
@@ -122,10 +123,7 @@ contract BlueberryStaking is
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
     //////////////////////////////////////////////////*/
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+    constructor() {}
 
     /*//////////////////////////////////////////////////
                      FUNCTIONS
@@ -146,7 +144,11 @@ contract BlueberryStaking is
         uint256 _rewardDuration,
         address[] memory _bTokens,
         address _admin
-    ) Ownable2Step(_admin) initializer {
+    ) public initializer {
+        __Ownable2Step_init();
+        __Pausable_init();
+        _transferOwnership(_admin);
+
         if (
             _blb == address(0) || _usdc == address(0) || _treasury == address(0)
         ) {
