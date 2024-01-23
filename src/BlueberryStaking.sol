@@ -283,7 +283,7 @@ contract BlueberryStaking is
         for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
 
-            if (vest.amount <= 0) {
+            if (vest.amount == 0) {
                 revert NothingToUpdate();
             }
 
