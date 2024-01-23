@@ -452,7 +452,7 @@ contract BlueberryStaking is
         IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
 
         // max 5 days
-        if (_secondsInPast >= 432_000) {
+        if (_secondsInPast > 432_000) {
             revert InvalidObservationTime();
         }
 
