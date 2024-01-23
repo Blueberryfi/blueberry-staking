@@ -44,8 +44,8 @@ contract BlueberryStaking is
     IBlueberryToken public blb;
 
     /// @notice The  token contract
-    /// @notice The USDC token contract
-    IERC20 public usdc;
+    /// @notice The stableAsset token contract
+    IERC20 public stableAsset;
 
     /// @notice The treasury address
     address public treasury;
@@ -54,11 +54,10 @@ contract BlueberryStaking is
     address public uniswapV3Pool;
 
     /// @notice The Uniswap V3 factory address
-    address public uniswapV3Factory =
-        address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+    address public uniswapV3Factory;
 
     /// @notice The observation period for Uniswap V3
-    uint32 public observationPeriod = 3600;
+    uint32 public observationPeriod;
 
     /// @notice The total number of B tokens
     uint256 public totalBTokens;
@@ -101,16 +100,16 @@ contract BlueberryStaking is
     uint256 public finishAt;
 
     /// @notice The length of the vesting period
-    uint256 public vestLength = 52 weeks;
+    uint256 public vestLength;
 
     /// @notice The deployment time of the contract
     uint256 public deployedAt;
 
     // 25% at the start of each vesting period
-    uint256 public basePenaltyRatioPercent = 0.25e18;
+    uint256 public basePenaltyRatioPercent;
 
-    // USDC has 6 decimals- but this can be changed in case of depeg and new token set
-    uint256 private _usdcDecimals = 6;
+    // Number of decimals for the stable asset
+    uint256 private stableDecimals;
 
     mapping(uint256 => Epoch) public epochs;
 
@@ -118,7 +117,7 @@ contract BlueberryStaking is
      * @notice the length of an epoch in seconds
      * @dev 14 days by default
      */
-    uint256 public epochLength = 1_209_600;
+    uint256 public epochLength;
 
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -172,10 +171,16 @@ contract BlueberryStaking is
         }
 
         blb = IBlueberryToken(_blb);
-        usdc = IERC20(_usdc);
+        stableAsset = IERC20(_usdc);
+        stableDecimals = 6;
         treasury = _treasury;
         totalBTokens = _bTokens.length;
         rewardDuration = _rewardDuration;
+        vestLength = 52 weeks;
+        basePenaltyRatioPercent = 0.25e18;
+        epochLength = 1_209_600;
+        uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+        observationPeriod = 3600;
         finishAt = block.timestamp + _rewardDuration;
         deployedAt = block.timestamp;
     }
@@ -404,7 +409,7 @@ contract BlueberryStaking is
             }
 
             // calculate acceleration fee and log it to ensure eth value is sent
-            uint256 _accelerationFee = getAccelerationFeeUSDC(
+            uint256 _accelerationFee = getAccelerationFeeStableAsset(
                 msg.sender,
                 _vestIndex
             );
@@ -433,7 +438,11 @@ contract BlueberryStaking is
 
         if (totalAccelerationFee > 0) {
             // transfer the acceleration fee to the treasury
-            usdc.safeTransferFrom(msg.sender, treasury, totalAccelerationFee);
+            stableAsset.safeTransferFrom(
+                msg.sender,
+                treasury,
+                totalAccelerationFee
+            );
         }
 
         if (totalbdblb > 0) {
@@ -478,21 +487,21 @@ contract BlueberryStaking is
         );
 
         uint256 _decimalsBLB = 18;
-        uint256 _decimalsUSDC = _usdcDecimals;
+        uint256 _decimalsStable = stableDecimals;
 
         // Adjust for decimals
-        if (_decimalsBLB > _decimalsUSDC) {
-            _priceX96 /= 10 ** (_decimalsBLB - _decimalsUSDC);
-        } else if (_decimalsUSDC > _decimalsBLB) {
-            _priceX96 *= 10 ** (_decimalsUSDC - _decimalsBLB);
+        if (_decimalsBLB > _decimalsStable) {
+            _priceX96 /= 10 ** (_decimalsBLB - _decimalsStable);
+        } else if (_decimalsStable > _decimalsBLB) {
+            _priceX96 *= 10 ** (_decimalsStable - _decimalsBLB);
         }
 
-        // Now priceX96 is the price of blb in terms of usdc, multiplied by 2^96.
+        // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
         // To convert this to a human-readable format, you can divide by 2^96:
 
         uint256 _price = _priceX96 / 2 ** 96;
 
-        // Now 'price' is the price of blb in terms of usdc, in the correct decimal places.
+        // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
         return _price;
     }
 
@@ -523,14 +532,6 @@ contract BlueberryStaking is
 
     function currentEpoch() public view returns (uint256) {
         return (block.timestamp - deployedAt) / epochLength;
-    }
-
-    function getBLB() public view returns (address) {
-        return address(blb);
-    }
-
-    function getUSDC() public view returns (address) {
-        return address(usdc);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -636,7 +637,7 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function getAccelerationFeeUSDC(
+    function getAccelerationFeeStableAsset(
         address _user,
         uint256 _vestingScheduleIndex
     ) public view returns (uint256 accelerationFee) {
@@ -649,7 +650,7 @@ contract BlueberryStaking is
         accelerationFee =
             ((((_vest.priceUnderlying * _vest.amount) / 1e18) *
                 _earlyUnlockPenaltyRatio) / 1e18) /
-            (10 ** (18 - _usdcDecimals));
+            (10 ** (18 - stableDecimals));
     }
 
     /*//////////////////////////////////////////////////
@@ -759,7 +760,7 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function setbasePenaltyRatioPercent(uint256 _ratio) external onlyOwner {
+    function setBasePenaltyRatioPercent(uint256 _ratio) external onlyOwner {
         if (_ratio > 1e18) {
             revert InvalidPenaltyRatio();
         }
@@ -770,20 +771,20 @@ contract BlueberryStaking is
 
     /**
      * @notice Changes the address of stable asset to an alternative in the event of a depeg
-     * @param _usdc The new stable asset address
-     * @param _decimals The decimals of the new usdc
+     * @param _stableAsset The new stable asset address
+     * @param _decimals The decimals of the new stableAsset
      */
-    function changeusdcAddress(
-        address _usdc,
+    function changeStableAddress(
+        address _stableAsset,
         uint256 _decimals
     ) external onlyOwner {
-        if (_usdc == address(0)) {
+        if (_stableAsset == address(0)) {
             revert AddressZero();
         }
-        usdc = IERC20(_usdc);
-        _usdcDecimals = _decimals;
+        stableAsset = IERC20(_stableAsset);
+        stableDecimals = _decimals;
 
-        emit UsdcAddressUpdated(_usdc, _decimals, block.timestamp);
+        emit StableAssetUpdated(_stableAsset, _decimals, block.timestamp);
     }
 
     /// @inheritdoc IBlueberryStaking

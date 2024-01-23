@@ -164,6 +164,6 @@ contract Control is Test {
         blueberryStaking.changeBLB(address(newBLB));
 
         // Check if the BLB token address was updated correctly
-        assertEq(blueberryStaking.getBLB(), address(newBLB));
+        assertEq(address(blueberryStaking.blb()), address(newBLB));
     }
 }

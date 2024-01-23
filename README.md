@@ -5,7 +5,7 @@ This is the README file for the BlueberryStaking smart contract, which implement
 - Contract Name: BlueberryStaking
 - License: MIT
 - Solidity Version: 0.8.19
-- Author: haruxe
+- Author: BlueberryProtocol
 - Description
 BlueberryStaking is a smart contract that facilitates staking of tokens and distribution of rewards in the form of BLB tokens. The contract supports multiple tokens that can be staked, and it includes vesting functionality for the distributed rewards. Users can stake tokens, earn rewards, unstake tokens, claim rewards, accelerate vesting, and complete vesting based on the rules defined in the contract.
 

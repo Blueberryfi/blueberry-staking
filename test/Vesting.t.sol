@@ -126,7 +126,7 @@ contract BlueberryStakingTest is Test {
         (uint256 vestAmount,, uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
         uint256 _earlyUnlockRatio = (blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0));
         uint256 _expectedCost = (_earlyUnlockRatio * ((underlyingCost * vestAmount) / 1e18) / 1e18) / 1e12;
-        uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeUSDC(bob, 0));
+        uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeStableAsset(bob, 0));
 
         console.log("expected cost: $0.%s", _expectedCost);
         console.log("real cost: $%s", _accelerationFee);
