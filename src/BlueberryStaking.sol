@@ -288,7 +288,7 @@ contract BlueberryStaking is
         for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
 
-            if (vest.amount <= 0) {
+            if (vest.amount == 0) {
                 revert NothingToUpdate();
             }
 
@@ -381,7 +381,7 @@ contract BlueberryStaking is
         }
 
         // lockdrop period must be complete i.e 2 months
-        if (block.timestamp < deployedAt + 60 days) {
+        if (block.timestamp <= deployedAt + 60 days) {
             revert LockdropIncomplete();
         }
 
@@ -461,7 +461,7 @@ contract BlueberryStaking is
         IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
 
         // max 5 days
-        if (_secondsInPast >= 432_000) {
+        if (_secondsInPast > 432_000) {
             revert InvalidObservationTime();
         }
 
