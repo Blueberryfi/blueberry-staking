@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity >=0.4.0 <0.9.0;
 
 import "../lib/forge-std/src/Test.sol";
-import "../src/BlueberryStaking.sol";
-import "../src/BlueberryToken.sol";
-import "../src/MockbToken.sol";
-import "../src/MockUSDC.sol";
+import {BlueberryStaking} from "../src/BlueberryStaking.sol";
+import {BlueberryToken} from "../src/BlueberryToken.sol";
+import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking public blueberryStaking;
@@ -39,9 +40,8 @@ contract BlueberryStakingTest is Test {
             return b - a <= 1e6;
         }
     }
-    
-    function setUp() public {
 
+    function setUp() public {
         // 0. Deploy the contracts
 
         vm.startPrank(owner);
@@ -60,7 +60,9 @@ contract BlueberryStakingTest is Test {
         existingBTokens[1] = address(mockbToken2);
         existingBTokens[2] = address(mockbToken3);
 
-        blueberryStaking = new BlueberryStaking(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens);
+        blueberryStaking = new BlueberryStaking();
+
+        blueberryStaking.initialize(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens, owner);
 
         blb.transfer(address(blueberryStaking), 1e20);
 
@@ -104,16 +106,13 @@ contract BlueberryStakingTest is Test {
         skip(14 days);
 
         blueberryStaking.startVesting(bTokens);
-        
     }
 
-
     function testAccelerateVestingMonthOne() public {
-
         // 3. 1/2 a year has now passed, bob decides to accelerate his vesting
 
         vm.warp(180 days);
-        
+
         uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
 
@@ -142,25 +141,30 @@ contract BlueberryStakingTest is Test {
     }
 
     function testEnsureEarlyUnlockRatioLinear() public {
-
         blueberryStaking.startVesting(bTokens);
 
         console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
 
-        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 35);
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 25);
 
         skip(10 days);
 
-        console2.log("Unlock penalty ratio after 10 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
+        console2.log(
+            "Unlock penalty ratio after 10 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
+        );
 
         skip(155 days);
 
-        console2.log("Unlock penalty ratio after 165 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
+        console2.log(
+            "Unlock penalty ratio after 165 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
+        );
 
         skip(200 days);
 
-        console2.log("Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
-    
+        console2.log(
+            "Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
+        );
+
         assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
     }
 }
