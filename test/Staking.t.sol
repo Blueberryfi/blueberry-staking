@@ -99,7 +99,7 @@ contract BlueberryStakingTest is Test {
 
         bTokens[0] = address(mockbToken1);
 
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -150,7 +150,7 @@ contract BlueberryStakingTest is Test {
         address[] memory bTokens = new address[](1);
         bTokens[0] = address(mockbToken1);
 
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -197,7 +197,7 @@ contract BlueberryStakingTest is Test {
 
         bTokens[0] = address(mockbToken1);
 
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -294,7 +294,7 @@ contract BlueberryStakingTest is Test {
 
         bTokens[0] = address(mockbToken1);
 
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
 

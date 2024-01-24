@@ -65,7 +65,7 @@ contract Control is Test {
     }
 
     // Test adding new bTokens to the contract
-    function testAddBTokens() public {
+    function testaddIbTokens() public {
         vm.startPrank(owner);
         // Deploy new mock tokens
         IERC20 mockbToken4 = new MockbToken();
@@ -79,29 +79,29 @@ contract Control is Test {
         bTokens[2] = address(mockbToken6);
 
         // Add the new bTokens to the BlueberryStaking contract
-        blueberryStaking.addBTokens(bTokens);
+        blueberryStaking.addIbTokens(bTokens);
 
         // Check if the new bTokens were added successfully
-        assertEq(blueberryStaking.isBToken(address(mockbToken4)), true);
-        assertEq(blueberryStaking.isBToken(address(mockbToken5)), true);
-        assertEq(blueberryStaking.isBToken(address(mockbToken6)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockbToken4)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockbToken5)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockbToken6)), true);
     }
 
     // Test removing existing bTokens from the contract
-    function testRemoveBTokens() public {
+    function testremoveIbTokens() public {
         vm.startPrank(owner);
         // Check if existing bTokens are initially present
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[0])), true);
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[1])), true);
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[2])), true);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[0])), true);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[1])), true);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[2])), true);
 
         // Remove existing bTokens from the BlueberryStaking contract
-        blueberryStaking.removeBTokens(existingBTokens);
+        blueberryStaking.removeIbTokens(existingBTokens);
 
         // Check if existing bTokens were removed successfully
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[0])), false);
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[1])), false);
-        assertEq(blueberryStaking.isBToken(address(existingBTokens[2])), false);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[0])), false);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[1])), false);
+        assertEq(blueberryStaking.isIbToken(address(existingBTokens[2])), false);
     }
 
     // Test pausing and unpausing the BlueberryStaking contract
@@ -117,13 +117,13 @@ contract Control is Test {
     }
 
     // Test notifying reward amounts for existing bTokens
-    function testNotifyRewardAmount() public {
+    function testmodifyRewardAmount() public {
         // Set reward amounts for existing bTokens
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = 1e19;
         amounts[1] = 1e19 * 4;
         amounts[2] = 1e23 * 4;
-        blueberryStaking.notifyRewardAmount(existingBTokens, amounts);
+        blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
 
         // Check if the reward rates were set correctly
         assertEq(
