@@ -89,7 +89,7 @@ contract BlueberryStakingTest is Test {
 
         bTokens[0] = existingBTokens[0];
 
-        blueberryStaking.notifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
 

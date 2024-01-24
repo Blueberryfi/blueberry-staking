@@ -48,7 +48,7 @@ interface IBlueberryStaking {
 
     error VestingNotCompleted();
 
-    error InvalidBToken();
+    error InvalidIbToken();
 
     error InvalidLength();
 
@@ -70,7 +70,7 @@ interface IBlueberryStaking {
 
     error LockdropIncomplete();
 
-    error BTokenDoesNotExist();
+    error IbTokenDoesNotExist();
 
     error EpochLengthZero();
 
@@ -78,17 +78,17 @@ interface IBlueberryStaking {
                          EVENTS
     //////////////////////////////////////////////////*/
 
-    event Staked(address indexed user, address[] bTokens, uint256[] amounts, uint256 timestamp);
+    event Staked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
 
-    event Unstaked(address indexed user, address[] bTokens, uint256[] amounts, uint256 timestamp);
+    event Unstaked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
 
     event Claimed(address indexed user, uint256 amount, uint256 timestamp);
 
-    event BTokensAdded(address[] indexed bTokens, uint256 timestamp);
+    event IbTokensAdded(address[] indexed ibTokens, uint256 timestamp);
 
-    event BTokensRemoved(address[] indexed bTokens, uint256 timestamp);
+    event IbTokensRemoved(address[] indexed ibTokens, uint256 timestamp);
 
-    event RewardAmountNotified(address[] indexed bTokens, uint256[] amounts, uint256 timestamp);
+    event RewardAmountModified(address[] indexed ibTokens, uint256[] amounts, uint256 timestamp);
 
     event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
 
@@ -141,24 +141,24 @@ interface IBlueberryStaking {
     /**
      * @notice stakes a given amount of each token
      * @dev The amount of tokens must be approved by the user before calling this function
-     * @param _bTokens An array of the tokens to stake
+     * @param _ibTokens An array of the tokens to stake
      * @param _amounts An array of the amounts of each token to stake
      */
-    function stake(address[] calldata _bTokens, uint256[] calldata _amounts) external;
+    function stake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
 
     /**
      * @notice unstakes a given amount of each token
      * @dev does not claim rewards
-     * @param _bTokens An array of the tokens to unstake
+     * @param _ibTokens An array of the tokens to unstake
      * @param _amounts An array of the amounts of each token to unstake
      */
-    function unstake(address[] calldata _bTokens, uint256[] calldata _amounts) external;
+    function unstake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
 
     /**
      * @notice starts the vesting process for a given array of tokens
-     * @param _bTokens An array of the tokens to start vesting for the caller
+     * @param _ibTokens An array of the tokens to start vesting for the caller
      */
-    function startVesting(address[] calldata _bTokens) external;
+    function startVesting(address[] calldata _ibTokens) external;
 
     /**
      * @notice Claims the tokens that have completed their vesting schedule for the caller.
@@ -211,14 +211,14 @@ interface IBlueberryStaking {
     function isVestingComplete(address _user, uint256 _vestIndex) external view returns (bool);
 
     /**
-     * @return returns the total amount of rewards for the given bToken
+     * @return returns the total amount of rewards for the given ibToken
      */
-    function rewardPerToken(address _bToken) external view returns (uint256);
+    function rewardPerToken(address _ibToken) external view returns (uint256);
 
     /**
-     * @return earnedAmount the amount of rewards the given user has earned for the given bToken
+     * @return earnedAmount the amount of rewards the given user has earned for the given ibToken
      */
-    function earned(address _account, address _bToken) external view returns (uint256 earnedAmount);
+    function earned(address _account, address _ibToken) external view returns (uint256 earnedAmount);
 
     /**
      * @return the timestamp of the last time rewards were updated
@@ -257,10 +257,10 @@ interface IBlueberryStaking {
      * mappings
      * @dev the caller should consider the reward rate for each token before calling this function and total rewards
      * should be less than the total amount of tokens
-     * @param _bTokens An array of the tokens to change the reward amounts for
+     * @param _ibTokens An array of the tokens to change the reward amounts for
      * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
-    function notifyRewardAmount(address[] calldata _bTokens, uint256[] calldata _amounts) external;
+    function modifyRewardAmount(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
 
     /**
      * @notice Changes the reward duration in seconds
@@ -290,16 +290,16 @@ interface IBlueberryStaking {
     function changeTreasuryAddress(address _treasury) external;
 
     /**
-     * @notice Removes the given tokens from the list of bTokens
-     * @param _bTokens An array of the tokens to remove
+     * @notice Removes the given tokens from the list of ibTokens
+     * @param _ibTokens An array of the tokens to remove
      */
-    function removeBTokens(address[] calldata _bTokens) external;
+    function removeIbTokens(address[] calldata _ibTokens) external;
 
     /**
-     * @notice Adds the given tokens to the list of bTokens
-     * @param _bTokens An array of the tokens to add
+     * @notice Adds the given tokens to the list of ibTokens
+     * @param _ibTokens An array of the tokens to add
      */
-    function addBTokens(address[] calldata _bTokens) external;
+    function addIbTokens(address[] calldata _ibTokens) external;
 
     /**
      * @notice Change the epoch length in seconds
