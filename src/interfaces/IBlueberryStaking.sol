@@ -74,6 +74,8 @@ interface IBlueberryStaking {
 
     error EpochLengthZero();
 
+    error ArrayAlreadySet();
+
     /*//////////////////////////////////////////////////
                          EVENTS
     //////////////////////////////////////////////////*/
@@ -319,6 +321,20 @@ interface IBlueberryStaking {
      */
     function changeUniswapInformation(address _uniswapPool, address _uniswapFactory, uint32 _observationPeriod)
         external;
+
+    /**
+     * @notice Sets the initial ibTokens array
+     * @dev This function can only be called once by the owner
+     * @param _ibTokens Set the ibTokens array
+     */
+    function setIbTokenArray(address[] calldata _ibTokens) external;
+
+    /**
+     * @notice Fetches the total accumulated rewards for a given user 
+     * @param _user The user's address to check for accumulated bdBLB rewards
+     * @return The total accumulated rewards for the user in terms of bdBLB (18 decimals)
+     */
+    function getAccumulatedRewards(address _user) external returns (uint256);
 
     /**
      * @notice Pauses the contract
