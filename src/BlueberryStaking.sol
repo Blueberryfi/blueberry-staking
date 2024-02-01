@@ -23,7 +23,7 @@ import "v3-core/libraries/FixedPoint96.sol";
 import {IBlueberryToken, IERC20} from "./interfaces/IBlueberryToken.sol";
 import {IBlueberryStaking} from "./interfaces/IBlueberryStaking.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "../lib/forge-std/src/Test.sol";
+
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
  * @author Blueberry Protocol
@@ -35,7 +35,7 @@ contract BlueberryStaking is
 {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
-    event Reward(uint256 reward);
+
     /*//////////////////////////////////////////////////
                         VARIABLES
     //////////////////////////////////////////////////*/
