@@ -119,6 +119,12 @@ contract BlueberryStaking is
      */
     uint256 public epochLength;
 
+    /**
+     * @notice A list of all the ibTokens
+     * @dev This storage variable was added on Jan 31, 2022 as part of an upgrade to improve user experience
+     */
+    address[] public ibTokens;
+
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
     //////////////////////////////////////////////////*/
@@ -690,6 +696,7 @@ contract BlueberryStaking is
             }
 
             isIbToken[_ibTokens[i]] = true;
+            ibTokens.push(_ibTokens[i]);
         }
 
         emit IbTokensAdded(_ibTokens, block.timestamp);
@@ -823,6 +830,27 @@ contract BlueberryStaking is
     /// @inheritdoc IBlueberryStaking
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    /// @inheritdoc IBlueberryStaking
+    function setIbTokenArray(address[] calldata _ibTokens) external onlyOwner {
+        // Make sure the storage variable has already been set
+        if (ibTokens.length > 0) {
+            revert ArrayAlreadySet();
+        }
+        ibTokens = _ibTokens;
+    }
+    
+    /// @inheritdoc IBlueberryStaking
+    function getAccumulatedRewards(address _user) external view returns (uint256 _totalRewards) {
+        address[] memory cachedTokens = ibTokens;
+        uint256 cachedLength = cachedTokens.length;
+
+        for (uint256 i; i < cachedLength; ++i) {
+            if (isIbToken[cachedTokens[i]]) {
+                _totalRewards += _earned(_user, cachedTokens[i]);
+            }
+        }
     }
 
     receive() external payable {}

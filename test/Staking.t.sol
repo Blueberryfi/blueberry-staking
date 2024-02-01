@@ -26,8 +26,8 @@ contract BlueberryStakingTest is Test {
     address public dan = address(4);
     address public owner = address(3);
 
-    uint256 public bobInitialBalance = 1e18 * 200;
-    uint256 public sallyInitialBalance = 1e18 * 200;
+    uint256 public bobInitialBalance = 1e8 * 200;
+    uint256 public sallyInitialBalance = 1e8 * 200;
     uint256 public ownerInitialBalance;
 
     function isCloseEnough(uint256 a, uint256 b) public pure returns (bool) {
@@ -63,17 +63,17 @@ contract BlueberryStakingTest is Test {
 
         blb.transfer(address(blueberryStaking), 1e20);
 
-        mockbToken1.transfer(bob, 1e18 * 200);
-        mockbToken2.transfer(bob, 1e18 * 200);
-        mockbToken3.transfer(bob, 1e18 * 200);
+        mockbToken1.transfer(bob, 1e8 * 200);
+        mockbToken2.transfer(bob, 1e8 * 200);
+        mockbToken3.transfer(bob, 1e8 * 200);
 
-        mockbToken1.transfer(sally, 1e18 * 200);
-        mockbToken2.transfer(sally, 1e18 * 200);
-        mockbToken3.transfer(sally, 1e18 * 200);
+        mockbToken1.transfer(sally, 1e8 * 200);
+        mockbToken2.transfer(sally, 1e8 * 200);
+        mockbToken3.transfer(sally, 1e8 * 200);
 
-        mockbToken1.transfer(dan, 1e18 * 200);
-        mockbToken2.transfer(dan, 1e18 * 200);
-        mockbToken3.transfer(dan, 1e18 * 200);
+        mockbToken1.transfer(dan, 1e8 * 200);
+        mockbToken2.transfer(dan, 1e8 * 200);
+        mockbToken3.transfer(dan, 1e8 * 200);
 
         mockUSDC.transfer(bob, 1e10);
         mockUSDC.transfer(sally, 1e10);
@@ -95,7 +95,7 @@ contract BlueberryStakingTest is Test {
 
         rewardAmounts[0] = 1e18 * 20;
 
-        stakeAmounts[0] = 1e18 * 10;
+        stakeAmounts[0] = 1e8 * 10;
 
         bTokens[0] = address(mockbToken1);
 
@@ -145,7 +145,7 @@ contract BlueberryStakingTest is Test {
         rewardAmounts[0] = 1e18 * 1000;
 
         uint256[] memory stakeAmounts = new uint256[](1);
-        stakeAmounts[0] = 1e18 * 50;
+        stakeAmounts[0] = 1e8 * 50;
 
         address[] memory bTokens = new address[](1);
         bTokens[0] = address(mockbToken1);
@@ -193,7 +193,7 @@ contract BlueberryStakingTest is Test {
 
         rewardAmounts[0] = 1e18 * 20;
 
-        stakeAmounts[0] = 1e18 * 10;
+        stakeAmounts[0] = 1e8 * 10;
 
         bTokens[0] = address(mockbToken1);
 
@@ -290,7 +290,7 @@ contract BlueberryStakingTest is Test {
 
         rewardAmounts[0] = 1e18 * 20;
 
-        stakeAmounts[0] = 1e18 * 10;
+        stakeAmounts[0] = 1e8 * 10;
 
         bTokens[0] = address(mockbToken1);
 
@@ -317,5 +317,60 @@ contract BlueberryStakingTest is Test {
         // 3.6 ensure that bob can still start vesting
 
         blueberryStaking.startVesting(bTokens);
+    }
+    
+    function testRewardAccumulation() public {
+        // Temporary variables
+        uint256[] memory rewardAmounts = new uint256[](2);
+        uint256[] memory stakeAmounts = new uint256[](2);
+        address[] memory bTokens = new address[](2);
+
+        uint256[] memory sallyRewardAmounts = new uint256[](1);
+        uint256[] memory sallyStakeAmounts = new uint256[](1);
+        address[] memory sallybTokens = new address[](1);
+
+        // 1. Notify the new rewards amount 20 tokens for the first epoch
+
+        vm.startPrank(owner);
+
+        rewardAmounts[0] = 1e18 * 20;
+        rewardAmounts[1] = 1e18 * 20;
+        sallyRewardAmounts[0] = 1e18 * 20;
+
+        stakeAmounts[0] = 1e8 * 10;
+        stakeAmounts[1] = 1e8 * 10;
+        sallyStakeAmounts[0] = 1e8 * 10;
+
+        bTokens[0] = address(mockbToken1);
+        bTokens[1] = address(mockbToken2);
+        sallybTokens[0] = address(mockbToken1);
+
+        blueberryStaking.setIbTokenArray(bTokens);
+        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+
+        vm.stopPrank();
+
+        // 2. bob stakes 10 bToken1
+
+        vm.startPrank(bob);
+
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockbToken2.approve(address(blueberryStaking), stakeAmounts[1]);
+
+        blueberryStaking.stake(bTokens, stakeAmounts);
+
+        blueberryStaking.getAccumulatedRewards(owner);
+
+        vm.startPrank(sally);
+
+        mockbToken1.approve(address(blueberryStaking), sallyStakeAmounts[0]);
+        blueberryStaking.stake(sallybTokens, sallyStakeAmounts);
+
+        vm.stopPrank();
+
+        skip(14 days);
+
+        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), rewardAmounts[0] / 2 + rewardAmounts[1]), true);    
+    
     }
 }
