@@ -141,30 +141,32 @@ contract BlueberryStakingTest is Test {
     }
 
     function testEnsureEarlyUnlockRatioLinear() public {
+        // To start, the penalty is 25%. After 364 days (52 weeks), the penalty will be 0%.
         blueberryStaking.startVesting(bTokens);
 
+        // 0/364 days: 100% of original penalty => 25%.
         console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
+        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 25e16);
 
-        assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16, 25);
-
+        // 10/364 days: 97% of original penalty => ~24%.
         skip(10 days);
-
         console2.log(
             "Unlock penalty ratio after 10 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
         );
+        assertApproxEqAbs(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 24e16, 1e16);
 
+        // 165/364 days: 55% of original penalty => ~14%.
         skip(155 days);
-
         console2.log(
             "Unlock penalty ratio after 165 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
         );
+        assertApproxEqAbs(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 14e16, 1e16);
 
-        skip(200 days);
-
+        // 364/364 days: 0% of original penalty => 0%.
+        skip(199 days);
         console2.log(
-            "Unlock penalty ratio after 365 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
+            "Unlock penalty ratio after 364 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
         );
-
         assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
     }
 }
