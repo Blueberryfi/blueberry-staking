@@ -121,9 +121,15 @@ contract BlueberryStaking is
 
     /**
      * @notice A list of all the ibTokens
-     * @dev This storage variable was added on Jan 31, 2022 as part of an upgrade to improve user experience
+     * @dev This storage variable was added on Jan 31, 2024 as part of an upgrade to improve user experience
      */
     address[] public ibTokens;
+
+    /**
+     * @notice The extra vest reward due to each user as a result of redistributing BLB during vest acceleration.
+     * @dev This storage variable was added on Mar 7, 2024 as part of a bug-fix upgrade
+     */
+    mapping(address => uint256[]) public vestExtra;
 
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -290,6 +296,7 @@ contract BlueberryStaking is
         }
 
         Vest[] storage vests = vesting[msg.sender];
+        uint256[] storage extras = vestExtra[msg.sender];
 
         for (uint256 i; i < _vestIndexes.length; ++i) {
             Vest storage vest = vests[_vestIndexes[i]];
@@ -301,7 +308,7 @@ contract BlueberryStaking is
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
             if (epochs[_vestEpoch].redistributedBLB > 0) {
-                vest.amount +=
+                extras[_vestIndexes[i]] = 
                     (vest.amount * epochs[_vestEpoch].redistributedBLB) /
                     epochs[_vestEpoch].totalBLB;
             }
@@ -341,6 +348,7 @@ contract BlueberryStaking is
                 vesting[msg.sender].push(
                     Vest(reward, block.timestamp, _priceUnderlying)
                 );
+                vestExtra[msg.sender].push(0);
             }
         }
 
@@ -354,6 +362,7 @@ contract BlueberryStaking is
         uint256[] calldata _vestIndexes
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         Vest[] storage vests = vesting[msg.sender];
+        uint256[] storage extras = vestExtra[msg.sender];
         if (vesting[msg.sender].length < _vestIndexes.length) {
             revert InvalidLength();
         }
@@ -366,8 +375,14 @@ contract BlueberryStaking is
                 revert VestingIncomplete();
             }
 
-            totalbdblb += v.amount;
+            totalbdblb += v.amount + extras[_vestIndexes[i]];
+
+            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            uint256 _vestEpoch = (v.startTime - deployedAt) / epochLength;
+            epochs[_vestEpoch].totalBLB -= v.amount;
+
             delete vests[_vestIndexes[i]];
+            delete extras[_vestIndexes[i]];
         }
 
         if (totalbdblb > 0) {
@@ -392,6 +407,7 @@ contract BlueberryStaking is
         }
 
         Vest[] storage vests = vesting[msg.sender];
+        uint256[] storage extras = vestExtra[msg.sender];
 
         uint256 totalbdblb;
         uint256 totalRedistributedAmount;
@@ -399,7 +415,7 @@ contract BlueberryStaking is
         for (uint256 i; i < _vestIndexes.length; ++i) {
             uint256 _vestIndex = _vestIndexes[i];
             Vest storage _vest = vests[_vestIndex];
-            uint256 _vestAmount = _vest.amount;
+            uint256 _vestAmount = _vest.amount + extras[_vestIndex];
 
             if (_vestAmount <= 0) {
                 revert NothingToUpdate();
@@ -438,8 +454,13 @@ contract BlueberryStaking is
             // the remainder is withdrawable by the user
             totalbdblb += _vestAmount;
 
+            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            uint256 _vestEpoch = (_vest.startTime - deployedAt) / epochLength;
+            epochs[_vestEpoch].totalBLB -= _vest.amount;
+
             // delete the vest
             delete vests[_vestIndex];
+            delete extras[_vestIndex];
         }
 
         if (totalAccelerationFee > 0) {
@@ -609,7 +630,7 @@ contract BlueberryStaking is
     function bdblbBalance(address _user) public view returns (uint256) {
         uint256 _balance;
         for (uint256 i; i < vesting[_user].length; ++i) {
-            _balance += vesting[_user][i].amount;
+            _balance += vesting[_user][i].amount + vestExtra[_user][i];
         }
         return _balance;
     }
@@ -648,13 +669,16 @@ contract BlueberryStaking is
         uint256 _vestingScheduleIndex
     ) public view returns (uint256 accelerationFee) {
         Vest storage _vest = vesting[_user][_vestingScheduleIndex];
+        uint256 _extra = vestExtra[_user][_vestingScheduleIndex];
+        uint256 _vestAmount = _vest.amount + _extra;
+
         uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(
             _user,
             _vestingScheduleIndex
         );
 
         accelerationFee =
-            ((((_vest.priceUnderlying * _vest.amount) / 1e18) *
+            ((((_vest.priceUnderlying * _vestAmount) / 1e18) *
                 _earlyUnlockPenaltyRatio) / 1e18) /
             (10 ** (18 - stableDecimals));
     }
