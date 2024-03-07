@@ -301,7 +301,7 @@ contract BlueberryStaking is
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
             if (epochs[_vestEpoch].redistributedBLB > 0) {
-                vest.amount =
+                vest.amount +=
                     (vest.amount * epochs[_vestEpoch].redistributedBLB) /
                     epochs[_vestEpoch].totalBLB;
             }
