@@ -33,14 +33,6 @@ contract BlueberryStakingTest is Test {
     uint256[] public stakeAmounts = new uint256[](1);
     address[] public bTokens = new address[](1);
 
-    function isCloseEnough(uint256 a, uint256 b) public pure returns (bool) {
-        if (a > b) {
-            return a - b <= 1e6;
-        } else {
-            return b - a <= 1e6;
-        }
-    }
-
     function setUp() public {
         // 0. Deploy the contracts
 
@@ -93,22 +85,30 @@ contract BlueberryStakingTest is Test {
 
         vm.stopPrank();
 
-        // 2. bob stakes 10 of each bToken
+        // 2. bob and sally each stake 10 of each bToken
 
         vm.startPrank(bob);
-
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-
         blueberryStaking.stake(bTokens, stakeAmounts);
+        vm.stopPrank();
+
+        vm.startPrank(sally);
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+        vm.stopPrank();
 
         console.log("BLB balance before: %s", blb.balanceOf(address(this)));
 
+        // 3. bob starts vesting after 14 days of rewards accrual
         skip(14 days);
-
+        vm.prank(bob);
         blueberryStaking.startVesting(bTokens);
     }
 
     function testAccelerateVestingMonthOne() public {
+        // Bob has just started vesting (see `setUp()`).
+        vm.startPrank(bob);
+
         // 3. 1/2 a year has now passed, bob decides to accelerate his vesting
 
         vm.warp(180 days);
@@ -135,14 +135,16 @@ contract BlueberryStakingTest is Test {
 
         console.log("USDC balance after acceleration 1/2 year: $%s", mockUSDC.balanceOf(bob) / 1e6);
 
-        require(isCloseEnough(_usdcBefore - (_expectedCost / 1e46), mockUSDC.balanceOf(bob)));
+        assertApproxEqAbs(mockUSDC.balanceOf(bob), _usdcBefore - (_expectedCost / 1e46), 1e6);
 
         console.log("BLB balance after acceleration: %s", blb.balanceOf(address(this)));
+
+        vm.stopPrank();
     }
 
     function testEnsureEarlyUnlockRatioLinear() public {
+        // Bob has just started vesting (see `setUp()`).
         // To start, the penalty is 25%. After 364 days (52 weeks), the penalty will be 0%.
-        blueberryStaking.startVesting(bTokens);
 
         // 0/364 days: 100% of original penalty => 25%.
         console2.log("Unlock penalty ratio right away: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16);
@@ -168,5 +170,56 @@ contract BlueberryStakingTest is Test {
             "Unlock penalty ratio after 364 days: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e16
         );
         assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
+    }
+
+    function testAccelerateVestingTwoUsers() public {
+        // Bob has just started vesting (see `setUp()`).
+        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+
+        // Wait 60 days to guarantee lockdrop completes.
+        skip(60 days);
+
+        vm.startPrank(bob);
+
+        // Bob accelerates, paying an early unlock penalty and acceleration fee.
+        uint256[] memory indexes = new uint256[](1);
+        uint256 bobPenalty = blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0);
+        mockUSDC.approve(address(blueberryStaking), 1e6 * 10_000);
+        blueberryStaking.accelerateVesting(indexes);
+
+        // Bob should have received his vest amount minus the early unlock penalty.
+        uint256 redistributedBLB = bobPenalty * bobVestAmount / 1e18;
+        uint256 bobBLB = blb.balanceOf(bob);
+        console2.log("Bob's vest amount was: %s", bobVestAmount);
+        console2.log("Bob's penalty amount was: %s", redistributedBLB);
+        console2.log("Bob received: %s", bobBLB);
+        assertEq(bobBLB, bobVestAmount - redistributedBLB);
+
+        vm.stopPrank();
+
+        vm.startPrank(sally);
+
+        // Sally now starts vesting within the same epoch that Bob redistributed some BLB.
+        blueberryStaking.startVesting(bTokens);
+        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+
+        // Wait 52 weeks to enable Sally to complete her vesting.
+        skip(52 weeks);
+
+        // Sally completes her vesting. She should have received her vest amount plus Bob's redistributed BLB.
+        blueberryStaking.completeVesting(indexes);
+        uint256 sallyBLB = blb.balanceOf(sally);
+        console2.log("Sally's vest amount was: %s", sallyVestAmount);
+        console2.log("Sally received: %s", sallyBLB);
+        assertEq(sallyBLB, sallyVestAmount + redistributedBLB);
+
+        vm.stopPrank();
+
+        // In total, Bob and Sally should have received all of the vested rewards.
+        uint256 totalVestAmount = bobVestAmount + sallyVestAmount;
+        uint256 totalBLB = bobBLB + sallyBLB;
+        console2.log("Together, Bob and Sally earned: %s", totalVestAmount);
+        console2.log("Together, Bob and Sally received: %s", totalBLB);
+        assertEq(totalBLB, totalVestAmount);
     }
 }
