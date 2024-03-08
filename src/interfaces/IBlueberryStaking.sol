@@ -28,8 +28,6 @@ interface IBlueberryStaking {
 
     error NothingToAccelerate();
 
-    error InvalidEpoch();
-
     error LockDropActive();
 
     error LockDropInactive();
@@ -72,8 +70,6 @@ interface IBlueberryStaking {
 
     error IbTokenDoesNotExist();
 
-    error EpochLengthZero();
-
     error ArrayAlreadySet();
 
     /*//////////////////////////////////////////////////
@@ -95,8 +91,6 @@ interface IBlueberryStaking {
     event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
 
     event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
-
-    event EpochLengthUpdated(uint256 epochLength, uint256 timestamp);
 
     event BasePenaltyRatioChanged(uint256 basePenaltyRatio, uint256 timestamp);
 
@@ -126,16 +120,6 @@ interface IBlueberryStaking {
         uint256 extra;
         uint256 startTime;
         uint256 priceUnderlying;
-    }
-
-    /**
-     * @dev Struct to store info related to a Epoch
-     * @param redistributedBLB The amount of BLB redistributed in the epoch
-     * @param totalBLB The total amount of BLB in the epoch
-     */
-    struct Epoch {
-        uint256 redistributedBLB;
-        uint256 totalBLB;
     }
 
     /*//////////////////////////////////////////////////
@@ -201,13 +185,6 @@ interface IBlueberryStaking {
      * @return _price The current price using 6 decimal points
      */
     function getPrice() external view returns (uint256 _price);
-
-    /**
-     * @notice ensures the user can only claim rewards once per epoch
-     * @param _user the user to check
-     * @return returns true if the user can claim, false otherwise
-     */
-    function canClaim(address _user) external view returns (bool);
 
     /**
      * @return returns true if the vesting schedule is complete for the given user and vesting index
@@ -304,11 +281,6 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to add
      */
     function addIbTokens(address[] calldata _ibTokens) external;
-
-    /**
-     * @notice Change the epoch length in seconds
-     */
-    function changeEpochLength(uint256 _epochLength) external;
 
     /**
      * @notice Change the blb token address (in case of migration)

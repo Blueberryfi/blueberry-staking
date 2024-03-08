@@ -74,9 +74,6 @@ contract BlueberryStaking is
     /// @notice The reward rate for each address
     mapping(address => uint256) public rewardRate;
 
-    /// @notice The last claimed epoch for each address
-    mapping(address => uint256) public lastClaimedEpoch;
-
     /// @notice The ibtoken status for each address
     mapping(address => bool) public isIbToken;
 
@@ -111,13 +108,11 @@ contract BlueberryStaking is
     // Number of decimals for the stable asset
     uint256 private stableDecimals;
 
-    mapping(uint256 => Epoch) public epochs;
+    // Sum of all user vesting positions
+    uint256 private totalVestAmount;
 
-    /**
-     * @notice the length of an epoch in seconds
-     * @dev 14 days by default
-     */
-    uint256 public epochLength;
+    // Amount of BLB marked for redistribution after vest acceleration
+    uint256 private redistributedBLB;
 
     /**
      * @notice A list of all the ibTokens
@@ -184,7 +179,6 @@ contract BlueberryStaking is
         rewardDuration = _rewardDuration;
         vestLength = 52 weeks;
         basePenaltyRatioPercent = 0.25e18;
-        epochLength = 1_209_600;
         uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
         observationPeriod = 3600;
         finishAt = block.timestamp + _rewardDuration;
@@ -298,12 +292,8 @@ contract BlueberryStaking is
                 revert NothingToUpdate();
             }
 
-            uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
-
-            if (epochs[_vestEpoch].redistributedBLB > 0) {
-                vest.extra = 
-                    (vest.amount * epochs[_vestEpoch].redistributedBLB) /
-                    epochs[_vestEpoch].totalBLB;
+            if (redistributedBLB > 0) {
+                vest.extra = (vest.amount * redistributedBLB) / totalVestAmount;
             }
         }
 
@@ -314,14 +304,6 @@ contract BlueberryStaking is
     function startVesting(
         address[] calldata _ibTokens
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        if (!canClaim(msg.sender)) {
-            revert AlreadyClaimed();
-        }
-
-        uint256 _currentEpoch = currentEpoch();
-
-        lastClaimedEpoch[msg.sender] = _currentEpoch;
-
         uint256 totalRewards;
         for (uint256 i; i < _ibTokens.length; ++i) {
             if (!isIbToken[address(_ibTokens[i])]) {
@@ -344,7 +326,7 @@ contract BlueberryStaking is
             }
         }
 
-        epochs[_currentEpoch].totalBLB += totalRewards;
+        totalVestAmount += totalRewards;
 
         emit Claimed(msg.sender, totalRewards, block.timestamp);
     }
@@ -368,10 +350,9 @@ contract BlueberryStaking is
 
             totalbdblb += v.amount + v.extra;
 
-            // Ensure accurate redistribution accounting for the corresponding epoch.
-            uint256 _vestEpoch = (v.startTime - deployedAt) / epochLength;
-            epochs[_vestEpoch].totalBLB -= v.amount;
-            epochs[_vestEpoch].redistributedBLB -= v.extra;
+            // Ensure accurate redistribution accounting for accelerations.
+            totalVestAmount -= v.amount;
+            redistributedBLB -= v.extra;
 
             delete vests[_vestIndexes[i]];
         }
@@ -431,9 +412,8 @@ contract BlueberryStaking is
             uint256 _redistributionAmount = (_vestTotal *
                 _earlyUnlockPenaltyRatio) / 1e18;
 
-            // get current epoch and redistribute to it
-            uint256 _epoch = currentEpoch();
-            epochs[_epoch].redistributedBLB += _redistributionAmount;
+            // redistribute the penalty to other users
+            redistributedBLB += _redistributionAmount;
 
             // log it for the event
             totalRedistributedAmount += _redistributionAmount;
@@ -444,10 +424,9 @@ contract BlueberryStaking is
             // the remainder is withdrawable by the user
             totalbdblb += _vestTotal;
 
-            // Ensure accurate redistribution accounting for the corresponding epoch.
-            uint256 _vestEpoch = (_vest.startTime - deployedAt) / epochLength;
-            epochs[_vestEpoch].totalBLB -= _vest.amount;
-            epochs[_vestEpoch].redistributedBLB -= _vest.extra;
+            // Ensure accurate redistribution accounting after this withdrawal.
+            totalVestAmount -= _vest.amount;
+            redistributedBLB -= _vest.extra;
 
             // delete the vest
             delete vests[_vestIndex];
@@ -539,16 +518,6 @@ contract BlueberryStaking is
             // gets the price of BLB in USD averaged over the last hour
             _price = fetchTWAP(observationPeriod);
         }
-    }
-
-    /// @inheritdoc IBlueberryStaking
-    function canClaim(address _user) public view returns (bool) {
-        uint256 _currentEpoch = currentEpoch();
-        return lastClaimedEpoch[_user] <= _currentEpoch;
-    }
-
-    function currentEpoch() public view returns (uint256) {
-        return (block.timestamp - deployedAt) / epochLength;
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -684,16 +653,6 @@ contract BlueberryStaking is
         blb = IBlueberryToken(_blb);
 
         emit BLBUpdated(_blb, block.timestamp);
-    }
-
-    /// @inheritdoc IBlueberryStaking
-    function changeEpochLength(uint256 _epochLength) external onlyOwner {
-        if (_epochLength == 0) {
-            revert EpochLengthZero();
-        }
-        epochLength = _epochLength;
-
-        emit EpochLengthUpdated(_epochLength, block.timestamp);
     }
 
     /// @inheritdoc IBlueberryStaking

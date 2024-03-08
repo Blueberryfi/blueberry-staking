@@ -140,15 +140,6 @@ contract Control is Test {
         );
     }
 
-    // Test changing the epoch length
-    function testChangeEpochLength() public {
-        vm.startPrank(owner);
-
-        // Change the epoch length and verify the updated value
-        blueberryStaking.changeEpochLength(70_420_248_412);
-        assertEq(blueberryStaking.epochLength(), 70_420_248_412);
-    }
-
     // Test changing the BLB token address
     function testChangeBLB() public {
         vm.startPrank(owner);

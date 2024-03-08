@@ -85,7 +85,7 @@ contract BlueberryStakingTest is Test {
 
         vm.stopPrank();
 
-        // 1. Notify the new rewards amount 4_000 of each token for the epoch
+        // 1. Notify the new rewards amount 4_000 of each token for the reward period
 
         vm.startPrank(owner);
 
@@ -198,7 +198,7 @@ contract BlueberryStakingTest is Test {
         assertEq(blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0), 0);
     }
 
-    function testAccelerateVestingTwoUsers() public {
+    function testAccelerateVestingTwoUsersSequential() public {
         vm.startPrank(bob);
 
         // 3. bob starts vesting after 14 days of rewards accrual
@@ -227,7 +227,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(sally);
 
-        // Sally now starts vesting within the same epoch that Bob redistributed some BLB.
+        // Sally now starts vesting.
         blueberryStaking.startVesting(bTokens);
         (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
@@ -251,7 +251,7 @@ contract BlueberryStakingTest is Test {
         assertEq(totalBLB, totalVestAmount);
     }
 
-    function testAccelerateVestingTwoUsersSameEpoch() public {
+    function testAccelerateVestingTwoUsersSimultaneous() public {
         vm.startPrank(bob);
 
         // Wait 60 days to guarantee lockdrop completes.
@@ -279,7 +279,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(sally);
 
-        // Sally now starts vesting within the same epoch that Bob vested and redistributed some BLB.
+        // Sally now starts vesting.
         blueberryStaking.startVesting(bTokens);
         (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
@@ -303,7 +303,7 @@ contract BlueberryStakingTest is Test {
         assertEq(totalBLB, totalVestAmount);
     }
 
-    function testAccelerateVestingSameEpochStaggered() public {
+    function testAccelerateVestingStaggered() public {
         // Wait 60 days to guarantee lockdrop completes.
         skip(60 days + 1);
 

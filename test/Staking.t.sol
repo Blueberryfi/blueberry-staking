@@ -89,7 +89,7 @@ contract BlueberryStakingTest is Test {
         uint256[] memory stakeAmounts = new uint256[](1);
         address[] memory bTokens = new address[](1);
 
-        // 1. Notify the new rewards amount (1e18 * 20) for the first epoch
+        // 1. Notify the new rewards amount (1e18 * 20) for the reward period
 
         vm.startPrank(owner);
 
@@ -111,11 +111,11 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
-        // 3. Half an epoch passes and it becomes claimable
+        // 3. Half the reward period passes and it becomes claimable
 
         skip(7 days);
 
-        // 3.5 Ensure that the rewards are half of the total rewards given that half of an epoch has passed
+        // 3.5 Ensure that the rewards are half of the total rewards given that half of the reward period has passed
 
         console2.log("bob earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
 
@@ -187,7 +187,7 @@ contract BlueberryStakingTest is Test {
         uint256[] memory stakeAmounts = new uint256[](1);
         address[] memory bTokens = new address[](1);
 
-        // 1. Notify the new rewards amount (1e18 * 20) for the first epoch
+        // 1. Notify the new rewards amount (1e18 * 20) for the reward period
 
         vm.startPrank(owner);
 
@@ -227,7 +227,7 @@ contract BlueberryStakingTest is Test {
 
         vm.stopPrank();
 
-        // 3. The entire epoch passes thus all rewards are claimable
+        // 3. The entire reward period passes thus all rewards are claimable
 
         skip(14 days);
 
@@ -284,7 +284,7 @@ contract BlueberryStakingTest is Test {
         uint256[] memory stakeAmounts = new uint256[](1);
         address[] memory bTokens = new address[](1);
 
-        // 1. Notify the new rewards amount 20 tokens for the first epoch
+        // 1. Notify the new rewards amount 20 tokens for the reward period
 
         vm.startPrank(owner);
 
@@ -329,7 +329,7 @@ contract BlueberryStakingTest is Test {
         uint256[] memory sallyStakeAmounts = new uint256[](1);
         address[] memory sallybTokens = new address[](1);
 
-        // 1. Notify the new rewards amount 20 tokens for the first epoch
+        // 1. Notify the new rewards amount 20 tokens for the reward period
 
         vm.startPrank(owner);
 
