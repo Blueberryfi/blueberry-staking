@@ -368,9 +368,10 @@ contract BlueberryStaking is
 
             totalbdblb += v.amount + v.extra;
 
-            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            // Ensure accurate redistribution accounting for the corresponding epoch.
             uint256 _vestEpoch = (v.startTime - deployedAt) / epochLength;
             epochs[_vestEpoch].totalBLB -= v.amount;
+            epochs[_vestEpoch].redistributedBLB -= v.extra;
 
             delete vests[_vestIndexes[i]];
         }
@@ -443,9 +444,10 @@ contract BlueberryStaking is
             // the remainder is withdrawable by the user
             totalbdblb += _vestTotal;
 
-            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            // Ensure accurate redistribution accounting for the corresponding epoch.
             uint256 _vestEpoch = (_vest.startTime - deployedAt) / epochLength;
             epochs[_vestEpoch].totalBLB -= _vest.amount;
+            epochs[_vestEpoch].redistributedBLB -= _vest.extra;
 
             // delete the vest
             delete vests[_vestIndex];

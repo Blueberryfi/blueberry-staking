@@ -310,13 +310,13 @@ contract BlueberryStakingTest is Test {
         // Bob starts vesting.
         vm.startPrank(bob);
         blueberryStaking.startVesting(bTokens);
-        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+        (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
         vm.stopPrank();
 
         // Sally also starts vesting at the same time.
         vm.startPrank(sally);
         blueberryStaking.startVesting(bTokens);
-        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+        (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
         vm.stopPrank();
 
         uint256[] memory indexes = new uint256[](1);
@@ -338,13 +338,13 @@ contract BlueberryStakingTest is Test {
         // Dan starts his vesting.
         vm.startPrank(dan);
         blueberryStaking.startVesting(bTokens);
-        (uint256 danVestAmount, , ) = blueberryStaking.vesting(dan, 0);
+        (uint256 danVestAmount, , , ) = blueberryStaking.vesting(dan, 0);
         vm.stopPrank();
 
         // Alice also starts her vesting.
         vm.startPrank(alice);
         blueberryStaking.startVesting(bTokens);
-        (uint256 aliceVestAmount, , ) = blueberryStaking.vesting(alice, 0);
+        (uint256 aliceVestAmount, , , ) = blueberryStaking.vesting(alice, 0);
         vm.stopPrank();
 
         // Wait 52 weeks to enable Dan and Alice to complete their vesting.
