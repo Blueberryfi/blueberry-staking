@@ -24,9 +24,13 @@ contract BlueberryStakingTest is Test {
     address public bob = address(1);
     address public sally = address(2);
     address public owner = address(3);
+    address public dan = address(4);
+    address public alice = address(5);
 
     uint256 public bobInitialBalance = 1e18 * 200;
     uint256 public sallyInitialBalance = 1e18 * 200;
+    uint256 public danInitialBalance = 1e18 * 200;
+    uint256 public aliceInitialBalance = 1e18 * 200;
     uint256 public ownerInitialBalance;
 
     uint256[] public rewardAmounts = new uint256[](1);
@@ -66,8 +70,18 @@ contract BlueberryStakingTest is Test {
         mockbToken2.transfer(sally, 1e18 * 200);
         mockbToken3.transfer(sally, 1e18 * 200);
 
+        mockbToken1.transfer(dan, 1e18 * 200);
+        mockbToken2.transfer(dan, 1e18 * 200);
+        mockbToken3.transfer(dan, 1e18 * 200);
+
+        mockbToken1.transfer(alice, 1e18 * 200);
+        mockbToken2.transfer(alice, 1e18 * 200);
+        mockbToken3.transfer(alice, 1e18 * 200);
+
         mockUSDC.transfer(bob, 1e10);
         mockUSDC.transfer(sally, 1e10);
+        mockUSDC.transfer(dan, 1e10);
+        mockUSDC.transfer(alice, 1e10);
 
         vm.stopPrank();
 
@@ -85,7 +99,7 @@ contract BlueberryStakingTest is Test {
 
         vm.stopPrank();
 
-        // 2. bob and sally each stake 10 of each bToken
+        // 2. bob, sally, dan, and alice each stake 10 of each bToken
 
         vm.startPrank(bob);
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
@@ -93,6 +107,16 @@ contract BlueberryStakingTest is Test {
         vm.stopPrank();
 
         vm.startPrank(sally);
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+        vm.stopPrank();
+
+        vm.startPrank(dan);
+        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(bTokens, stakeAmounts);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
         mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
         vm.stopPrank();
@@ -276,6 +300,73 @@ contract BlueberryStakingTest is Test {
         uint256 totalBLB = bobBLB + sallyBLB;
         console2.log("Together, Bob and Sally earned: %s", totalVestAmount);
         console2.log("Together, Bob and Sally received: %s", totalBLB);
+        assertEq(totalBLB, totalVestAmount);
+    }
+
+    function testAccelerateVestingSameEpochStaggered() public {
+        // Wait 60 days to guarantee lockdrop completes.
+        skip(60 days + 1);
+
+        // Bob starts vesting.
+        vm.startPrank(bob);
+        blueberryStaking.startVesting(bTokens);
+        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+        vm.stopPrank();
+
+        // Sally also starts vesting at the same time.
+        vm.startPrank(sally);
+        blueberryStaking.startVesting(bTokens);
+        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+        vm.stopPrank();
+
+        uint256[] memory indexes = new uint256[](1);
+
+        // Bob immediately accelerates, paying the full early unlock penalty and acceleration fee.
+        vm.startPrank(bob);
+        mockUSDC.approve(address(blueberryStaking), 1e6 * 10_000);
+        blueberryStaking.accelerateVesting(indexes);
+        uint256 bobBLB = blb.balanceOf(bob);
+        vm.stopPrank();
+
+        // Sally also accelerates, paying the full early unlock penalty and acceleration fee.
+        vm.startPrank(sally);
+        mockUSDC.approve(address(blueberryStaking), 1e6 * 10_000);
+        blueberryStaking.accelerateVesting(indexes);
+        uint256 sallyBLB = blb.balanceOf(sally);
+        vm.stopPrank();
+
+        // Dan starts his vesting.
+        vm.startPrank(dan);
+        blueberryStaking.startVesting(bTokens);
+        (uint256 danVestAmount, , ) = blueberryStaking.vesting(dan, 0);
+        vm.stopPrank();
+
+        // Alice also starts her vesting.
+        vm.startPrank(alice);
+        blueberryStaking.startVesting(bTokens);
+        (uint256 aliceVestAmount, , ) = blueberryStaking.vesting(alice, 0);
+        vm.stopPrank();
+
+        // Wait 52 weeks to enable Dan and Alice to complete their vesting.
+        skip(52 weeks);
+
+        // Dan completes his vesting.
+        vm.startPrank(dan);
+        blueberryStaking.completeVesting(indexes);
+        uint256 danBLB = blb.balanceOf(dan);
+        vm.stopPrank();
+
+        // Alice completes her vesting.
+        vm.startPrank(alice);
+        blueberryStaking.completeVesting(indexes);
+        uint256 aliceBLB = blb.balanceOf(alice);
+        vm.stopPrank();
+
+        // In total, all users should have received all of the vested rewards.
+        uint256 totalVestAmount = bobVestAmount + sallyVestAmount + danVestAmount + aliceVestAmount;
+        uint256 totalBLB = bobBLB + sallyBLB + danBLB + aliceBLB;
+        console2.log("Together, all users earned: %s", totalVestAmount);
+        console2.log("Together, all users received: %s", totalBLB);
         assertEq(totalBLB, totalVestAmount);
     }
 }
