@@ -121,7 +121,7 @@ contract BlueberryStakingTest is Test {
         console.log("USDC balance before acceleration 1/2 year in: $%s", mockUSDC.balanceOf(bob) / 1e6);
         console.log("Acceleration Ratio: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
 
-        (uint256 vestAmount,, uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
+        (uint256 vestAmount, , , uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
         uint256 _earlyUnlockRatio = (blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0));
         uint256 _expectedCost = (_earlyUnlockRatio * ((underlyingCost * vestAmount) / 1e18) / 1e18) / 1e12;
         uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeStableAsset(bob, 0));
@@ -180,7 +180,7 @@ contract BlueberryStakingTest is Test {
         // 3. bob starts vesting after 14 days of rewards accrual
         skip(14 days);
         blueberryStaking.startVesting(bTokens);
-        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+        (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
         // Wait 60 days to guarantee lockdrop completes.
         skip(60 days);
@@ -205,7 +205,7 @@ contract BlueberryStakingTest is Test {
 
         // Sally now starts vesting within the same epoch that Bob redistributed some BLB.
         blueberryStaking.startVesting(bTokens);
-        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+        (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
         // Wait 52 weeks to enable Sally to complete her vesting.
         skip(52 weeks);
@@ -235,7 +235,7 @@ contract BlueberryStakingTest is Test {
 
         // Bob starts vesting.
         blueberryStaking.startVesting(bTokens);
-        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+        (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
         // Bob immediately accelerates, paying the full early unlock penalty and acceleration fee.
         uint256[] memory indexes = new uint256[](1);
@@ -257,7 +257,7 @@ contract BlueberryStakingTest is Test {
 
         // Sally now starts vesting within the same epoch that Bob vested and redistributed some BLB.
         blueberryStaking.startVesting(bTokens);
-        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+        (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
         // Wait 52 weeks to enable Sally to complete her vesting.
         skip(52 weeks);
