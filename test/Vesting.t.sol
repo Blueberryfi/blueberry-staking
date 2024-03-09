@@ -98,18 +98,16 @@ contract BlueberryStakingTest is Test {
         vm.stopPrank();
 
         console.log("BLB balance before: %s", blb.balanceOf(address(this)));
-
-        // 3. bob starts vesting after 14 days of rewards accrual
-        skip(14 days);
-        vm.prank(bob);
-        blueberryStaking.startVesting(bTokens);
     }
 
     function testAccelerateVestingMonthOne() public {
-        // Bob has just started vesting (see `setUp()`).
         vm.startPrank(bob);
 
-        // 3. 1/2 a year has now passed, bob decides to accelerate his vesting
+        // 3. bob starts vesting after 14 days of rewards accrual
+        skip(14 days);
+        blueberryStaking.startVesting(bTokens);
+
+        // 4. 1/2 a year has now passed, bob decides to accelerate his vesting
 
         vm.warp(180 days);
 
@@ -123,7 +121,7 @@ contract BlueberryStakingTest is Test {
         console.log("USDC balance before acceleration 1/2 year in: $%s", mockUSDC.balanceOf(bob) / 1e6);
         console.log("Acceleration Ratio: %s%", blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0) / 1e15);
 
-        (uint256 vestAmount,, uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
+        (uint256 vestAmount, , , uint256 underlyingCost) = blueberryStaking.vesting(bob, 0);
         uint256 _earlyUnlockRatio = (blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0));
         uint256 _expectedCost = (_earlyUnlockRatio * ((underlyingCost * vestAmount) / 1e18) / 1e18) / 1e12;
         uint256 _accelerationFee = (blueberryStaking.getAccelerationFeeStableAsset(bob, 0));
@@ -143,7 +141,11 @@ contract BlueberryStakingTest is Test {
     }
 
     function testEnsureEarlyUnlockRatioLinear() public {
-        // Bob has just started vesting (see `setUp()`).
+        // 3. bob starts vesting after 14 days of rewards accrual
+        skip(14 days);
+        vm.prank(bob);
+        blueberryStaking.startVesting(bTokens);
+
         // To start, the penalty is 25%. After 364 days (52 weeks), the penalty will be 0%.
 
         // 0/364 days: 100% of original penalty => 25%.
@@ -173,13 +175,15 @@ contract BlueberryStakingTest is Test {
     }
 
     function testAccelerateVestingTwoUsers() public {
-        // Bob has just started vesting (see `setUp()`).
-        (uint256 bobVestAmount, , ) = blueberryStaking.vesting(bob, 0);
+        vm.startPrank(bob);
+
+        // 3. bob starts vesting after 14 days of rewards accrual
+        skip(14 days);
+        blueberryStaking.startVesting(bTokens);
+        (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
         // Wait 60 days to guarantee lockdrop completes.
         skip(60 days);
-
-        vm.startPrank(bob);
 
         // Bob accelerates, paying an early unlock penalty and acceleration fee.
         uint256[] memory indexes = new uint256[](1);
@@ -201,7 +205,59 @@ contract BlueberryStakingTest is Test {
 
         // Sally now starts vesting within the same epoch that Bob redistributed some BLB.
         blueberryStaking.startVesting(bTokens);
-        (uint256 sallyVestAmount, , ) = blueberryStaking.vesting(sally, 0);
+        (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
+
+        // Wait 52 weeks to enable Sally to complete her vesting.
+        skip(52 weeks);
+
+        // Sally completes her vesting. She should have received her vest amount plus Bob's redistributed BLB.
+        blueberryStaking.completeVesting(indexes);
+        uint256 sallyBLB = blb.balanceOf(sally);
+        console2.log("Sally's vest amount was: %s", sallyVestAmount);
+        console2.log("Sally received: %s", sallyBLB);
+        assertEq(sallyBLB, sallyVestAmount + redistributedBLB);
+
+        vm.stopPrank();
+
+        // In total, Bob and Sally should have received all of the vested rewards.
+        uint256 totalVestAmount = bobVestAmount + sallyVestAmount;
+        uint256 totalBLB = bobBLB + sallyBLB;
+        console2.log("Together, Bob and Sally earned: %s", totalVestAmount);
+        console2.log("Together, Bob and Sally received: %s", totalBLB);
+        assertEq(totalBLB, totalVestAmount);
+    }
+
+    function testAccelerateVestingTwoUsersSameEpoch() public {
+        vm.startPrank(bob);
+
+        // Wait 60 days to guarantee lockdrop completes.
+        skip(60 days + 1);
+
+        // Bob starts vesting.
+        blueberryStaking.startVesting(bTokens);
+        (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
+
+        // Bob immediately accelerates, paying the full early unlock penalty and acceleration fee.
+        uint256[] memory indexes = new uint256[](1);
+        uint256 bobPenalty = blueberryStaking.getEarlyUnlockPenaltyRatio(bob, 0);
+        mockUSDC.approve(address(blueberryStaking), 1e6 * 10_000);
+        blueberryStaking.accelerateVesting(indexes);
+
+        // Bob should have received his vest amount minus the early unlock penalty.
+        uint256 redistributedBLB = bobPenalty * bobVestAmount / 1e18;
+        uint256 bobBLB = blb.balanceOf(bob);
+        console2.log("Bob's vest amount was: %s", bobVestAmount);
+        console2.log("Bob's penalty amount was: %s", redistributedBLB);
+        console2.log("Bob received: %s", bobBLB);
+        assertEq(bobBLB, bobVestAmount - redistributedBLB);
+
+        vm.stopPrank();
+
+        vm.startPrank(sally);
+
+        // Sally now starts vesting within the same epoch that Bob vested and redistributed some BLB.
+        blueberryStaking.startVesting(bTokens);
+        (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
         // Wait 52 weeks to enable Sally to complete her vesting.
         skip(52 weeks);

@@ -121,7 +121,7 @@ contract BlueberryStaking is
 
     /**
      * @notice A list of all the ibTokens
-     * @dev This storage variable was added on Jan 31, 2022 as part of an upgrade to improve user experience
+     * @dev This storage variable was added on Jan 31, 2024 as part of an upgrade to improve user experience
      */
     address[] public ibTokens;
 
@@ -301,7 +301,7 @@ contract BlueberryStaking is
             uint256 _vestEpoch = (vest.startTime - deployedAt) / epochLength;
 
             if (epochs[_vestEpoch].redistributedBLB > 0) {
-                vest.amount +=
+                vest.extra = 
                     (vest.amount * epochs[_vestEpoch].redistributedBLB) /
                     epochs[_vestEpoch].totalBLB;
             }
@@ -339,7 +339,7 @@ contract BlueberryStaking is
                 uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(
-                    Vest(reward, block.timestamp, _priceUnderlying)
+                    Vest(reward, 0, block.timestamp, _priceUnderlying)
                 );
             }
         }
@@ -366,7 +366,12 @@ contract BlueberryStaking is
                 revert VestingIncomplete();
             }
 
-            totalbdblb += v.amount;
+            totalbdblb += v.amount + v.extra;
+
+            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            uint256 _vestEpoch = (v.startTime - deployedAt) / epochLength;
+            epochs[_vestEpoch].totalBLB -= v.amount;
+
             delete vests[_vestIndexes[i]];
         }
 
@@ -399,9 +404,9 @@ contract BlueberryStaking is
         for (uint256 i; i < _vestIndexes.length; ++i) {
             uint256 _vestIndex = _vestIndexes[i];
             Vest storage _vest = vests[_vestIndex];
-            uint256 _vestAmount = _vest.amount;
+            uint256 _vestTotal = _vest.amount + _vest.extra;
 
-            if (_vestAmount <= 0) {
+            if (_vestTotal <= 0) {
                 revert NothingToUpdate();
             }
 
@@ -422,7 +427,7 @@ contract BlueberryStaking is
             totalAccelerationFee += _accelerationFee;
 
             // calculate the amount of the vest that will be redistributed
-            uint256 _redistributionAmount = (_vestAmount *
+            uint256 _redistributionAmount = (_vestTotal *
                 _earlyUnlockPenaltyRatio) / 1e18;
 
             // get current epoch and redistribute to it
@@ -433,10 +438,14 @@ contract BlueberryStaking is
             totalRedistributedAmount += _redistributionAmount;
 
             // remove it from the recieved vest
-            _vestAmount -= _redistributionAmount;
+            _vestTotal -= _redistributionAmount;
 
             // the remainder is withdrawable by the user
-            totalbdblb += _vestAmount;
+            totalbdblb += _vestTotal;
+
+            // Reduce totalBLB for the corresponding epoch to ensure accurate redistribution accounting.
+            uint256 _vestEpoch = (_vest.startTime - deployedAt) / epochLength;
+            epochs[_vestEpoch].totalBLB -= _vest.amount;
 
             // delete the vest
             delete vests[_vestIndex];
@@ -609,7 +618,7 @@ contract BlueberryStaking is
     function bdblbBalance(address _user) public view returns (uint256) {
         uint256 _balance;
         for (uint256 i; i < vesting[_user].length; ++i) {
-            _balance += vesting[_user][i].amount;
+            _balance += vesting[_user][i].amount + vesting[_user][i].extra;
         }
         return _balance;
     }
@@ -648,13 +657,15 @@ contract BlueberryStaking is
         uint256 _vestingScheduleIndex
     ) public view returns (uint256 accelerationFee) {
         Vest storage _vest = vesting[_user][_vestingScheduleIndex];
+        uint256 _vestTotal = _vest.amount + _vest.extra;
+
         uint256 _earlyUnlockPenaltyRatio = getEarlyUnlockPenaltyRatio(
             _user,
             _vestingScheduleIndex
         );
 
         accelerationFee =
-            ((((_vest.priceUnderlying * _vest.amount) / 1e18) *
+            ((((_vest.priceUnderlying * _vestTotal) / 1e18) *
                 _earlyUnlockPenaltyRatio) / 1e18) /
             (10 ** (18 - stableDecimals));
     }
