@@ -123,7 +123,11 @@ contract BlueberryStaking is
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
     //////////////////////////////////////////////////*/
-    constructor() {}
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /*//////////////////////////////////////////////////
                      FUNCTIONS
