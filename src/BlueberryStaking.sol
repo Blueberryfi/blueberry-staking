@@ -13,7 +13,7 @@ pragma solidity ^0.8.0;
 import {PausableUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/security/PausableUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import "v3-core/libraries/TickMath.sol";
@@ -177,7 +177,7 @@ contract BlueberryStaking is
 
         blb = IBlueberryToken(_blb);
         stableAsset = IERC20(_usdc);
-        stableDecimals = 6;
+        stableDecimals = IERC20Metadata(address(stableAsset)).decimals();
         treasury = _treasury;
         totalIbTokens = _ibTokens.length;
         rewardDuration = _rewardDuration;
@@ -755,19 +755,17 @@ contract BlueberryStaking is
     /**
      * @notice Changes the address of stable asset to an alternative in the event of a depeg
      * @param _stableAsset The new stable asset address
-     * @param _decimals The decimals of the new stableAsset
      */
-    function changeStableAddress(
-        address _stableAsset,
-        uint256 _decimals
-    ) external onlyOwner {
+    function changeStableAddress(address _stableAsset) external onlyOwner {
         if (_stableAsset == address(0)) {
             revert AddressZero();
         }
         stableAsset = IERC20(_stableAsset);
-        stableDecimals = _decimals;
+        uint8 decimals = IERC20Metadata(_stableAsset).decimals(); 
 
-        emit StableAssetUpdated(_stableAsset, _decimals, block.timestamp);
+        stableDecimals = decimals;
+
+        emit StableAssetUpdated(_stableAsset, decimals, block.timestamp);
     }
 
     /// @inheritdoc IBlueberryStaking

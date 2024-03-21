@@ -6,6 +6,7 @@ import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
 import {MockbToken} from "./mocks/MockbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {MockToken} from "./mocks/MockToken.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract Control is Test {
@@ -156,5 +157,19 @@ contract Control is Test {
 
         // Check if the BLB token address was updated correctly
         assertEq(address(blueberryStaking.blb()), address(newBLB));
+    }
+
+    // Test changing the stable token address
+    function testChangeStable() public {
+        vm.startPrank(owner);
+
+        // Deploy a new stable coin 
+        MockToken token = new MockToken(9);
+        
+        // Change the stable token to be the mock token with 9 decimals instead of the original 6 decimal token
+        blueberryStaking.changeStableAddress(address(token));
+
+        // Check that the stable token address was updated correctly
+        assertEq(address(blueberryStaking.stableAsset()), address(token));
     }
 }
