@@ -376,8 +376,8 @@ contract BlueberryStaking is
             revert InvalidLength();
         }
 
-        // lockdrop period must be complete i.e 2 months
-        if (block.timestamp <= deployedAt + 60 days) {
+        // lockdrop period must be complete i.e 1 month
+        if (block.timestamp <= deployedAt + 30 days) {
             revert LockdropIncomplete();
         }
 
