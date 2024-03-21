@@ -223,8 +223,8 @@ contract BlueberryStakingTest is Test {
         blueberryStaking.startVesting(bTokens);
         (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
-        // Wait 60 days to guarantee lockdrop completes.
-        skip(60 days);
+        // Wait 30 days to guarantee lockdrop completes.
+        skip(30 days);
 
         // Bob accelerates, paying an early unlock penalty and acceleration fee.
         uint256[] memory indexes = new uint256[](1);
@@ -271,8 +271,8 @@ contract BlueberryStakingTest is Test {
     function testAccelerateVestingTwoUsersSimultaneous() public {
         vm.startPrank(bob);
 
-        // Wait 60 days to guarantee lockdrop completes.
-        skip(60 days + 1);
+        // Wait 30 days to guarantee lockdrop completes.
+        skip(30 days + 1);
 
         // Bob starts vesting.
         blueberryStaking.startVesting(bTokens);
@@ -321,8 +321,8 @@ contract BlueberryStakingTest is Test {
     }
 
     function testAccelerateVestingStaggered() public {
-        // Wait 60 days to guarantee lockdrop completes.
-        skip(60 days + 1);
+        // Wait 30 days to guarantee lockdrop completes.
+        skip(30 days + 1);
 
         // Bob starts vesting.
         vm.startPrank(bob);
