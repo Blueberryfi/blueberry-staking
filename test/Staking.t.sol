@@ -2,6 +2,7 @@
 pragma solidity >=0.4.0 <0.9.0;
 
 import "../lib/forge-std/src/Test.sol";
+import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
 import {MockbToken} from "./mocks/MockbToken.sol";
@@ -17,7 +18,7 @@ contract BlueberryStakingTest is Test {
 
     IERC20 public mockUSDC;
 
-    address public treasury = address(0x1);
+    address public treasury = address(99);
 
     address[] public existingBTokens;
 
@@ -59,7 +60,23 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking = new BlueberryStaking();
 
-        blueberryStaking.initialize(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens, owner);
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(blueberryStaking),
+            address(treasury),
+            abi.encodeCall(
+                BlueberryStaking.initialize,
+                (
+                    address(blb),
+                    address(mockUSDC),
+                    address(treasury),
+                    1_209_600,
+                    existingBTokens,
+                    owner
+                )
+            )
+        );
+
+        blueberryStaking = BlueberryStaking(payable(address(proxy)));
 
         blb.transfer(address(blueberryStaking), 1e20);
 

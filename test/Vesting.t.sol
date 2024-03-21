@@ -2,6 +2,7 @@
 pragma solidity >=0.4.0 <0.9.0;
 
 import "../lib/forge-std/src/Test.sol";
+import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
 import {MockbToken} from "./mocks/MockbToken.sol";
@@ -58,8 +59,24 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking = new BlueberryStaking();
 
-        blueberryStaking.initialize(address(blb), address(mockUSDC), address(treasury), 1_209_600, existingBTokens, owner);
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(blueberryStaking),
+            address(treasury),
+            abi.encodeCall(
+                BlueberryStaking.initialize,
+                (
+                    address(blb),
+                    address(mockUSDC),
+                    address(treasury),
+                    1_209_600,
+                    existingBTokens,
+                    owner
+                )
+            )
+        );
 
+        blueberryStaking = BlueberryStaking(payable(address(proxy)));
+        
         blb.transfer(address(blueberryStaking), 1e20);
 
         mockbToken1.transfer(bob, 1e18 * 200);
@@ -368,5 +385,18 @@ contract BlueberryStakingTest is Test {
         console2.log("Together, all users earned: %s", totalVestAmount);
         console2.log("Together, all users received: %s", totalBLB);
         assertEq(totalBLB, totalVestAmount);
+    }
+
+    function testGetPrice() public {
+        // Period 1: 0.02e6 BLB/USDC
+        assertEq(blueberryStaking.getPrice(), 0.02e18);
+
+        // Period 2: 0.04e6 BLB/USDC
+        skip(15 days);
+        assertEq(blueberryStaking.getPrice(), 0.04e18);
+
+        // Period 3: Market Price (because we dont have a Uniswap Pool set up, price = 0.04e6 BLB/USDC)
+        skip(15 days);
+        assertEq(blueberryStaking.getPrice(), 0.04e18);
     }
 }
