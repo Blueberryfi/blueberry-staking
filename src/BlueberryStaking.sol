@@ -828,8 +828,4 @@ contract BlueberryStaking is
             }
         }
     }
-
-    receive() external payable {}
-
-    fallback() external payable {}
 }
