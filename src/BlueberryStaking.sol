@@ -746,7 +746,7 @@ contract BlueberryStaking is
 
     /// @inheritdoc IBlueberryStaking
     function setBasePenaltyRatioPercent(uint256 _ratio) external onlyOwner {
-        if (_ratio > 1e18) {
+        if (_ratio > 0.5e18) {
             revert InvalidPenaltyRatio();
         }
         basePenaltyRatioPercent = _ratio;
