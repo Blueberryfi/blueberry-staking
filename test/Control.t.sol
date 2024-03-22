@@ -24,6 +24,9 @@ contract Control is Test {
 
     address[] public existingBTokens;
 
+    // Initial reward duration
+    uint256 public constant REWARD_DURATION = 1_209_600;
+
     // Initialize the contract and deploy necessary instances
     function setUp() public {
         vm.startPrank(owner);
@@ -54,7 +57,7 @@ contract Control is Test {
                     address(blb),
                     address(mockUSDC),
                     address(treasury),
-                    1_209_600,
+                    REWARD_DURATION,
                     existingBTokens,
                     owner
                 )
@@ -188,5 +191,35 @@ contract Control is Test {
 
         // Check that the stable token address was updated correctly
         assertEq(address(blueberryStaking.stableAsset()), address(token));
+    }
+
+    function testChangeRewardAmount() public {
+        vm.startPrank(owner);
+
+        uint256 rewardAmount = REWARD_DURATION * 1e18;
+        // Set reward amounts for existing bTokens
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = rewardAmount;
+        amounts[1] = rewardAmount;
+        amounts[2] = rewardAmount;
+
+        // Set initial Reward Amounts
+        blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
+
+        uint256 length = existingBTokens.length;
+        for (uint256 i=0; i < length; ++i) {
+            uint256 rewardRate = blueberryStaking.rewardRate(existingBTokens[i]);
+            assertEq(rewardRate, 1e18);
+        }
+
+        skip(90 days);
+
+        // Add new Reward Amounts in the middle of reward period
+        blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
+
+        for (uint256 i=0; i < length; ++i) {
+            uint256 rewardRate = blueberryStaking.rewardRate(existingBTokens[i]);
+            assertEq(rewardRate, 1e18);
+        }
     }
 }

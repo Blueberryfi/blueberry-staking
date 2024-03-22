@@ -723,9 +723,10 @@ contract BlueberryStaking is
                 revert InvalidRewardRate();
             }
 
-            finishAt = block.timestamp + rewardDuration;
             lastUpdateTime[_ibToken] = block.timestamp;
         }
+
+        finishAt = block.timestamp + rewardDuration;
 
         emit RewardAmountModified(_ibTokens, _amounts, block.timestamp);
     }
