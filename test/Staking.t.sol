@@ -18,14 +18,14 @@ contract BlueberryStakingTest is Test {
 
     IERC20 public mockUSDC;
 
-    address public treasury = address(99);
+    address public treasury = makeAddr("treasury");
 
     address[] public existingBTokens;
 
-    address public bob = address(1);
-    address public sally = address(2);
-    address public dan = address(4);
-    address public owner = address(3);
+    address public bob = makeAddr("bob");
+    address public sally = makeAddr("sally");
+    address public owner = makeAddr("owner");
+    address public dan = makeAddr("dan");
 
     uint256 public bobInitialBalance = 1e8 * 200;
     uint256 public sallyInitialBalance = 1e8 * 200;

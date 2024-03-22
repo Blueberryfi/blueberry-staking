@@ -18,15 +18,15 @@ contract BlueberryStakingTest is Test {
 
     IERC20 public mockUSDC;
 
-    address public treasury = address(99);
+    address public treasury = makeAddr("treasury");
 
     address[] public existingBTokens;
 
-    address public bob = address(1);
-    address public sally = address(2);
-    address public owner = address(3);
-    address public dan = address(4);
-    address public alice = address(5);
+    address public bob = makeAddr("bob");
+    address public sally = makeAddr("sally");
+    address public owner = makeAddr("owner");
+    address public dan = makeAddr("dan");
+    address public alice = makeAddr("alice");
 
     uint256 public bobInitialBalance = 1e18 * 200;
     uint256 public sallyInitialBalance = 1e18 * 200;
@@ -388,14 +388,14 @@ contract BlueberryStakingTest is Test {
     }
 
     function testGetPrice() public {
-        // Period 1: 0.02e6 BLB/USDC
+        // Period 1: 0.02e18 USDC/BLB
         assertEq(blueberryStaking.getPrice(), 0.02e18);
 
-        // Period 2: 0.04e6 BLB/USDC
+        // Period 2: 0.04e18 USDC/BLB
         skip(15 days);
         assertEq(blueberryStaking.getPrice(), 0.04e18);
 
-        // Period 3: Market Price (because we dont have a Uniswap Pool set up, price = 0.04e6 BLB/USDC)
+        // Period 3: Market Price (because we dont have a Uniswap Pool set up, price = 0.04e18 USDC/BLB)
         skip(15 days);
         assertEq(blueberryStaking.getPrice(), 0.04e18);
     }

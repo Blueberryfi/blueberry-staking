@@ -18,8 +18,8 @@ contract Control is Test {
 
     IERC20 mockUSDC;
 
-    address public treasury = address(0x1);
-    address public owner = address(3);
+    address public treasury = makeAddr("treasury");
+    address public owner = makeAddr("owner");
 
     address[] public existingBTokens;
 

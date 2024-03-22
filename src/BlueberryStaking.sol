@@ -22,7 +22,7 @@ import "v3-core/libraries/FixedPoint96.sol";
 
 import {IBlueberryToken, IERC20} from "./interfaces/IBlueberryToken.sol";
 import {IBlueberryStaking} from "./interfaces/IBlueberryStaking.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
@@ -119,6 +119,9 @@ contract BlueberryStaking is
      * @dev This storage variable was added on Jan 31, 2024 as part of an upgrade to improve user experience
      */
     address[] public ibTokens;
+
+    /// @notice Duration of the lockdrop period
+    uint256 public constant LOCKDROP_DURATION = 30 days;
 
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -377,7 +380,7 @@ contract BlueberryStaking is
         }
 
         // lockdrop period must be complete i.e 1 month
-        if (block.timestamp <= deployedAt + 30 days) {
+        if (block.timestamp <= deployedAt + LOCKDROP_DURATION) {
             revert LockdropIncomplete();
         }
 
@@ -507,7 +510,7 @@ contract BlueberryStaking is
     /// @inheritdoc IBlueberryStaking
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
-        uint256 _period = (block.timestamp - deployedAt) / 15 days;
+        uint256 _period = (block.timestamp - deployedAt) / (LOCKDROP_DURATION / 2);
         // period 1: $0.02 / blb
         if (_period < 1) {
             _price = 0.02e18;
