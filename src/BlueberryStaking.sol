@@ -22,7 +22,7 @@ import "v3-core/libraries/FixedPoint96.sol";
 
 import {IBlueberryToken, IERC20} from "./interfaces/IBlueberryToken.sol";
 import {IBlueberryStaking} from "./interfaces/IBlueberryStaking.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
@@ -119,6 +119,9 @@ contract BlueberryStaking is
      * @dev This storage variable was added on Jan 31, 2024 as part of an upgrade to improve user experience
      */
     address[] public ibTokens;
+
+    /// @notice Duration of the lockdrop period
+    uint256 public constant LOCKDROP_DURATION = 30 days;
 
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -321,7 +324,6 @@ contract BlueberryStaking is
                 totalRewards += reward;
                 rewards[msg.sender][address(_ibToken)] = 0;
 
-                // month 1: $0.02 / blb
                 uint256 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(
@@ -377,8 +379,8 @@ contract BlueberryStaking is
             revert InvalidLength();
         }
 
-        // lockdrop period must be complete i.e 2 months
-        if (block.timestamp <= deployedAt + 60 days) {
+        // lockdrop period must be complete i.e 1 month
+        if (block.timestamp <= deployedAt + LOCKDROP_DURATION) {
             revert LockdropIncomplete();
         }
 
@@ -508,16 +510,16 @@ contract BlueberryStaking is
     /// @inheritdoc IBlueberryStaking
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
-        uint256 _month = (block.timestamp - deployedAt) / 30 days;
-        // month 1: $0.02 / blb
-        if (_month <= 1) {
+        uint256 _period = (block.timestamp - deployedAt) / (LOCKDROP_DURATION / 2);
+        // period 1: $0.02 / blb
+        if (_period < 1) {
             _price = 0.02e18;
         }
-        // month 2: $0.04 / blb
-        else if (_month <= 2 || uniswapV3Pool == address(0)) {
+        // period 2: $0.04 / blb
+        else if (_period < 2 || uniswapV3Pool == address(0)) {
             _price = 0.04e18;
         }
-        // month 3+
+        // period 3+
         else {
             // gets the price of BLB in USD averaged over the last hour
             _price = fetchTWAP(observationPeriod);

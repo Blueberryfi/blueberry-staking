@@ -182,7 +182,7 @@ interface IBlueberryStaking {
 
     /**
      * @notice gets the current price for BLB in StableAsset
-     * @return _price The current price using 6 decimal points
+     * @return _price The current price scaled to an 18 decimal fixed point number
      */
     function getPrice() external view returns (uint256 _price);
 
