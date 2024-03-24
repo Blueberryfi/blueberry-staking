@@ -666,8 +666,10 @@ contract BlueberryStaking is
     ) external onlyOwner {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
+        uint256 _totalRewards;
         bool _isBeforeFinishAt = (block.timestamp < finishAt);
         uint256 _rewardDuration = rewardDuration;
+        
         uint256 _length = _ibTokens.length;
         totalIbTokens += _length;
 
@@ -688,8 +690,12 @@ contract BlueberryStaking is
                 _amount = 0;
             }
 
+            _totalRewards += _amount;
+
             emit IbTokenAdded(_ibToken, _amount, block.timestamp);
         }
+
+        blb.transferFrom(msg.sender, address(this), _totalRewards);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -717,8 +723,10 @@ contract BlueberryStaking is
     ) external onlyOwner updateRewards(address(0), _ibTokens) {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
+        uint256 _totalRewards;
         uint256 _rewardDuration = rewardDuration;
         uint256 _ibTokensLength = _ibTokens.length;
+
         for (uint256 i; i < _ibTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
@@ -734,9 +742,12 @@ contract BlueberryStaking is
 
             finishAt = block.timestamp + _rewardDuration;
             lastUpdateTime[_ibToken] = block.timestamp;
+            _totalRewards += _amount;
 
             emit RewardAmountModified(_ibToken, _amount, block.timestamp);
         }
+
+        blb.transferFrom(msg.sender, address(this), _totalRewards);
     }
 
     /// @inheritdoc IBlueberryStaking

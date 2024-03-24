@@ -32,7 +32,8 @@ contract Control is Test {
         mockbToken2 = new MockbToken();
         mockbToken3 = new MockbToken();
         mockUSDC = new MockUSDC();
-        blb = new BlueberryToken(address(this), owner, block.timestamp + 30);
+
+        blb = new BlueberryToken(address(this), owner, block.timestamp);
 
         // Initialize existingBTokens array
         existingBTokens = new address[](3);
@@ -62,6 +63,7 @@ contract Control is Test {
         );
 
         blueberryStaking = BlueberryStaking(payable(address(proxy)));
+        blb.approve(address(blueberryStaking), UINT256_MAX);
 
         skip(300);
         blb.mint(address(owner), 1_000_000e18);
@@ -108,7 +110,6 @@ contract Control is Test {
 
         uint256 blbBalance = blb.balanceOf(address(blueberryStaking));
 
-        blb.approve(address(blueberryStaking), UINT256_MAX);
         // Add the new bTokens to the BlueberryStaking contract and update the rewards
         blueberryStaking.addIbTokens(bTokens, rewardAmounts);
 
@@ -187,7 +188,6 @@ contract Control is Test {
         amounts[1] = 1e19 * 4;
         amounts[2] = 1e23 * 4;
 
-        blb.approve(address(blueberryStaking), UINT256_MAX);
         blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
 
         // Check if the reward rates were set correctly
