@@ -83,26 +83,63 @@ contract Control is Test {
     }
 
     // Test adding new bTokens to the contract
-    function testaddIbTokens() public {
+    function testAddIbTokens() public {
         vm.startPrank(owner);
         // Deploy new mock tokens
         IERC20 mockbToken4 = new MockbToken();
         IERC20 mockbToken5 = new MockbToken();
         IERC20 mockbToken6 = new MockbToken();
 
+        uint256 rewardAmount = 100e18;
+        uint256 expectedRewardPerToken = 100e18 / blueberryStaking.rewardDuration();
+        console2.log("Expected Rewards: ", expectedRewardPerToken);
         // Create an array of addresses representing the new bTokens
         address[] memory bTokens = new address[](3);
+        uint256[] memory rewardAmounts = new uint256[](3);
+
         bTokens[0] = address(mockbToken4);
         bTokens[1] = address(mockbToken5);
         bTokens[2] = address(mockbToken6);
 
-        // Add the new bTokens to the BlueberryStaking contract
-        blueberryStaking.addIbTokens(bTokens);
+        rewardAmounts[0] = rewardAmount;
+        rewardAmounts[1] = rewardAmount;
+        rewardAmounts[2] = rewardAmount;
+
+        uint256 finishAtPreAdd = blueberryStaking.finishAt();
+        console2.log("current Time: ", block.timestamp);
+        console2.log("Finish at", finishAtPreAdd);
+        // Add the new bTokens to the BlueberryStaking contract and update the rewards
+        blueberryStaking.addIbTokens(bTokens, rewardAmounts);
+
+        uint256 finishAtPostAdd = blueberryStaking.finishAt();
+
+        // Validate that the finishAt time was not updated
+        assertTrue(finishAtPreAdd == finishAtPostAdd);
 
         // Check if the new bTokens were added successfully
         assertEq(blueberryStaking.isIbToken(address(mockbToken4)), true);
         assertEq(blueberryStaking.isIbToken(address(mockbToken5)), true);
         assertEq(blueberryStaking.isIbToken(address(mockbToken6)), true);
+
+        // Validate that the new tokens have reward amounts
+        assertEq(blueberryStaking.rewardRate(address(mockbToken4)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockbToken5)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockbToken6)), expectedRewardPerToken);
+
+        // Skip to after the reward period and add a token
+        skip(1209602);
+
+        MockbToken mockbToken7 = new MockbToken();
+
+        address[] memory bTokens2 = new address[](1);
+        bTokens2[0] = address(mockbToken7);
+
+        uint256[] memory rewardAmounts2 = new uint256[](1);
+        rewardAmounts2[0] = rewardAmount;
+
+        blueberryStaking.addIbTokens(bTokens2, rewardAmounts2);
+        // Validate that the new token has no reward amount due to being added after the finishAt timestamp
+        assertEq(blueberryStaking.rewardPerToken(address(mockbToken7)), 0);
     }
 
     // Test removing existing bTokens from the contract
