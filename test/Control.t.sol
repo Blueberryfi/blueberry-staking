@@ -64,7 +64,7 @@ contract Control is Test {
         blueberryStaking = BlueberryStaking(payable(address(proxy)));
 
         skip(300);
-        blb.mint(address(blueberryStaking), 1e18);
+        blb.mint(address(owner), 1_000_000e18);
     }
 
     // Test setting the vesting length
@@ -106,8 +106,14 @@ contract Control is Test {
 
         uint256 finishAtPreAdd = blueberryStaking.finishAt();
 
+        uint256 blbBalance = blb.balanceOf(address(blueberryStaking));
+
+        blb.approve(address(blueberryStaking), UINT256_MAX);
         // Add the new bTokens to the BlueberryStaking contract and update the rewards
         blueberryStaking.addIbTokens(bTokens, rewardAmounts);
+
+        // Check if the proper amount of blb was transfered to the contract
+        assertEq(blb.balanceOf(address(blueberryStaking)), blbBalance + (rewardAmount * 3));
 
         uint256 finishAtPostAdd = blueberryStaking.finishAt();
 
@@ -135,9 +141,13 @@ contract Control is Test {
         uint256[] memory rewardAmounts2 = new uint256[](1);
         rewardAmounts2[0] = rewardAmount;
 
+        uint256 balanceBefore = blb.balanceOf(address(blueberryStaking));
+
         blueberryStaking.addIbTokens(bTokens2, rewardAmounts2);
         // Validate that the new token has no reward amount due to being added after the finishAt timestamp
         assertEq(blueberryStaking.rewardPerToken(address(mockbToken7)), 0);
+        // Validate that the balance of the BlueberryStaking contract has not changed
+        assertEq(blb.balanceOf(address(blueberryStaking)), balanceBefore);
     }
 
     // Test removing existing bTokens from the contract
@@ -176,6 +186,8 @@ contract Control is Test {
         amounts[0] = 1e19;
         amounts[1] = 1e19 * 4;
         amounts[2] = 1e23 * 4;
+
+        blb.approve(address(blueberryStaking), UINT256_MAX);
         blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
 
         // Check if the reward rates were set correctly
@@ -191,6 +203,9 @@ contract Control is Test {
             blueberryStaking.rewardRate(existingBTokens[2]),
             (1e23 * 4) / blueberryStaking.rewardDuration()
         );
+
+        // Assert that the balance of the BlueberryStaking contract is equal to the sum of the reward amounts
+        assertEq(blb.balanceOf(address(blueberryStaking)),(1e19 + (1e19 * 4) + (1e23 * 4)));
     }
 
     // Test changing the BLB token address
