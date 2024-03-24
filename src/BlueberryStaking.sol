@@ -228,9 +228,8 @@ contract BlueberryStaking is
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        if ((_amounts.length) != _ibTokens.length) {
-            revert InvalidLength();
-        }
+        _validateTokenAmountsArray(_ibTokens, _amounts);
+
 
         for (uint256 i; i < _ibTokens.length; ++i) {
             address _ibToken = _ibTokens[i];
@@ -259,9 +258,8 @@ contract BlueberryStaking is
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        if (_amounts.length != _ibTokens.length) {
-            revert InvalidLength();
-        }
+        _validateTokenAmountsArray(_ibTokens, _amounts);
+
 
         for (uint256 i; i < _ibTokens.length; ++i) {
             address _ibToken = _ibTokens[i];
@@ -662,22 +660,42 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function addIbTokens(address[] calldata _ibTokens) external onlyOwner {
-        totalIbTokens += _ibTokens.length;
-        for (uint256 i; i < _ibTokens.length; ++i) {
-            if (_ibTokens[i] == address(0)) {
-                revert AddressZero();
-            }
+    function addIbTokens(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external onlyOwner {
+        _validateTokenAmountsArray(_ibTokens, _amounts);
 
-            if (isIbToken[_ibTokens[i]]) {
+        uint256 _totalRewardsAdded;
+        bool _isBeforeFinishAt = (block.timestamp < finishAt);
+        uint256 _rewardDuration = rewardDuration;
+        
+        uint256 _length = _ibTokens.length;
+        totalIbTokens += _length;
+
+        for (uint256 i; i < _length; ++i) {
+            address _ibToken = _ibTokens[i];
+            uint256 _amount = _amounts[i];
+
+            if (isIbToken[_ibToken]) {
                 revert BTokenAlreadyExists();
             }
 
-            isIbToken[_ibTokens[i]] = true;
-            ibTokens.push(_ibTokens[i]);
+            isIbToken[_ibToken] = true;
+            ibTokens.push(_ibToken);
+
+            if (_isBeforeFinishAt) {
+                _setRewardRate(_ibToken, _amount, _rewardDuration);
+            } else {
+                _amount = 0;
+            }
+
+            _totalRewardsAdded += _amount;
+
+            emit IbTokenAdded(_ibToken, _amount, block.timestamp);
         }
 
-        emit IbTokensAdded(_ibTokens, block.timestamp);
+        blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -703,32 +721,34 @@ contract BlueberryStaking is
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
     ) external onlyOwner updateRewards(address(0), _ibTokens) {
-        if (_amounts.length != _ibTokens.length) {
-            revert InvalidLength();
-        }
+        _validateTokenAmountsArray(_ibTokens, _amounts);
 
-        for (uint256 i; i < _ibTokens.length; ++i) {
+        uint256 _totalRewardsAdded;
+        uint256 _rewardDuration = rewardDuration;
+        uint256 _ibTokensLength = _ibTokens.length;
+
+        for (uint256 i; i < _ibTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
 
             if (block.timestamp > finishAt) {
-                rewardRate[_ibToken] = _amount / rewardDuration;
+                _setRewardRate(_ibToken, _amount, _rewardDuration);
             } else {
-                uint256 remaining = finishAt - block.timestamp;
-                uint256 leftover = remaining * rewardRate[_ibToken];
-                rewardRate[_ibToken] = (_amount + leftover) / rewardDuration;
-            }
-
-            if (rewardRate[_ibToken] == 0) {
-                revert InvalidRewardRate();
+                uint256 _timeRemaining = finishAt - block.timestamp;
+                uint256 _leftoverRewards = _timeRemaining * rewardRate[_ibToken];
+                uint256 _rewardAmount = _amount + _leftoverRewards;
+                _setRewardRate(_ibToken, _rewardAmount, _rewardDuration);
             }
 
             lastUpdateTime[_ibToken] = block.timestamp;
+            _totalRewardsAdded += _amount;
+
+            emit RewardAmountModified(_ibToken, _amount, block.timestamp);
         }
 
         finishAt = block.timestamp + rewardDuration;
 
-        emit RewardAmountModified(_ibTokens, _amounts, block.timestamp);
+        blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -827,6 +847,31 @@ contract BlueberryStaking is
             if (isIbToken[cachedTokens[i]]) {
                 _totalRewards += _earned(_user, cachedTokens[i]);
             }
+        }
+    }
+
+    /**
+     * @notice Sets the reward rate for a given token
+     * @param _token Address of the token that the rewardRate will be set for
+     * @param _amount The amount of tokens that will be distributed over the course
+     *        of the reward duration
+     * @param _duration The duration, in seconds, that the rewards will be distributed over
+     */
+    function _setRewardRate(address _token, uint256 _amount, uint256 _duration) internal {
+        if (_token == address(0)) revert AddressZero();
+        uint256 _rewardRate = _amount / _duration;
+        if (_rewardRate == 0) revert InvalidRewardRate();
+        rewardRate[_token] = _rewardRate;
+    }
+
+    /**
+     * @notice Validates that the lengths of two arrays are equal
+     * @param tokens An array of addresses
+     * @param amounts An array of unsigned 256-bit integers
+     */
+    function _validateTokenAmountsArray(address[] memory tokens, uint256[] memory amounts) internal pure {
+        if (tokens.length != amounts.length) {
+            revert InvalidLength();
         }
     }
 }

@@ -35,7 +35,8 @@ contract Control is Test {
         mockbToken2 = new MockbToken();
         mockbToken3 = new MockbToken();
         mockUSDC = new MockUSDC();
-        blb = new BlueberryToken(address(this), owner, block.timestamp + 30);
+
+        blb = new BlueberryToken(address(this), owner, block.timestamp);
 
         // Initialize existingBTokens array
         existingBTokens = new address[](3);
@@ -65,10 +66,10 @@ contract Control is Test {
         );
 
         blueberryStaking = BlueberryStaking(payable(address(proxy)));
+        blb.approve(address(blueberryStaking), UINT256_MAX);
 
         skip(300);
-        blb.mint(address(blueberryStaking), 1e18);
-        console2.log(blueberryStaking.owner());
+        blb.mint(address(owner), 1_000_000e18);
     }
 
     // Test setting the vesting length
@@ -86,26 +87,71 @@ contract Control is Test {
     }
 
     // Test adding new bTokens to the contract
-    function testaddIbTokens() public {
+    function testAddIbTokens() public {
         vm.startPrank(owner);
         // Deploy new mock tokens
         IERC20 mockbToken4 = new MockbToken();
         IERC20 mockbToken5 = new MockbToken();
         IERC20 mockbToken6 = new MockbToken();
 
+        uint256 rewardAmount = 100e18;
+        uint256 expectedRewardPerToken = 100e18 / blueberryStaking.rewardDuration();
+
         // Create an array of addresses representing the new bTokens
         address[] memory bTokens = new address[](3);
+        uint256[] memory rewardAmounts = new uint256[](3);
+
         bTokens[0] = address(mockbToken4);
         bTokens[1] = address(mockbToken5);
         bTokens[2] = address(mockbToken6);
 
-        // Add the new bTokens to the BlueberryStaking contract
-        blueberryStaking.addIbTokens(bTokens);
+        rewardAmounts[0] = rewardAmount;
+        rewardAmounts[1] = rewardAmount;
+        rewardAmounts[2] = rewardAmount;
+
+        uint256 finishAtPreAdd = blueberryStaking.finishAt();
+
+        uint256 blbBalance = blb.balanceOf(address(blueberryStaking));
+
+        // Add the new bTokens to the BlueberryStaking contract and update the rewards
+        blueberryStaking.addIbTokens(bTokens, rewardAmounts);
+
+        // Check if the proper amount of blb was transfered to the contract
+        assertEq(blb.balanceOf(address(blueberryStaking)), blbBalance + (rewardAmount * 3));
+
+        uint256 finishAtPostAdd = blueberryStaking.finishAt();
+
+        // Validate that the finishAt time was not updated
+        assertTrue(finishAtPreAdd == finishAtPostAdd);
 
         // Check if the new bTokens were added successfully
         assertEq(blueberryStaking.isIbToken(address(mockbToken4)), true);
         assertEq(blueberryStaking.isIbToken(address(mockbToken5)), true);
         assertEq(blueberryStaking.isIbToken(address(mockbToken6)), true);
+
+        // Validate that the new tokens have reward amounts
+        assertEq(blueberryStaking.rewardRate(address(mockbToken4)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockbToken5)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockbToken6)), expectedRewardPerToken);
+
+        // Skip to after the reward period and add a token
+        skip(1209602);
+
+        MockbToken mockbToken7 = new MockbToken();
+
+        address[] memory bTokens2 = new address[](1);
+        bTokens2[0] = address(mockbToken7);
+
+        uint256[] memory rewardAmounts2 = new uint256[](1);
+        rewardAmounts2[0] = rewardAmount;
+
+        uint256 balanceBefore = blb.balanceOf(address(blueberryStaking));
+
+        blueberryStaking.addIbTokens(bTokens2, rewardAmounts2);
+        // Validate that the new token has no reward amount due to being added after the finishAt timestamp
+        assertEq(blueberryStaking.rewardPerToken(address(mockbToken7)), 0);
+        // Validate that the balance of the BlueberryStaking contract has not changed
+        assertEq(blb.balanceOf(address(blueberryStaking)), balanceBefore);
     }
 
     // Test removing existing bTokens from the contract
@@ -144,6 +190,7 @@ contract Control is Test {
         amounts[0] = 1e19;
         amounts[1] = 1e19 * 4;
         amounts[2] = 1e23 * 4;
+
         blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
 
         // Check if the reward rates were set correctly
@@ -159,6 +206,9 @@ contract Control is Test {
             blueberryStaking.rewardRate(existingBTokens[2]),
             (1e23 * 4) / blueberryStaking.rewardDuration()
         );
+
+        // Assert that the balance of the BlueberryStaking contract is equal to the sum of the reward amounts
+        assertEq(blb.balanceOf(address(blueberryStaking)),(1e19 + (1e19 * 4) + (1e23 * 4)));
     }
 
     // Test changing the BLB token address

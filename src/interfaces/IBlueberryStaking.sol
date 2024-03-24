@@ -82,11 +82,11 @@ interface IBlueberryStaking {
 
     event Claimed(address indexed user, uint256 amount, uint256 timestamp);
 
-    event IbTokensAdded(address[] indexed ibTokens, uint256 timestamp);
+    event IbTokenAdded(address indexed ibToken, uint256 amount, uint256 timestamp);
 
     event IbTokensRemoved(address[] indexed ibTokens, uint256 timestamp);
 
-    event RewardAmountModified(address[] indexed ibTokens, uint256[] amounts, uint256 timestamp);
+    event RewardAmountModified(address indexed ibToken, uint256 amount, uint256 timestamp);
 
     event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
 
@@ -277,10 +277,13 @@ interface IBlueberryStaking {
     function removeIbTokens(address[] calldata _ibTokens) external;
 
     /**
-     * @notice Adds the given tokens to the list of ibTokens
+     * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
+     *        reward period
+     * @dev If the reward duration is over, you must call `modifyRewardAmount` after adding the token.
      * @param _ibTokens An array of the tokens to add
+     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
-    function addIbTokens(address[] calldata _ibTokens) external;
+    function addIbTokens(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
 
     /**
      * @notice Change the blb token address (in case of migration)

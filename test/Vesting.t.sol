@@ -49,7 +49,7 @@ contract BlueberryStakingTest is Test {
 
         mockUSDC = new MockUSDC();
 
-        blb = new BlueberryToken(owner, owner, block.timestamp + 30);
+        blb = new BlueberryToken(owner, owner, block.timestamp);
 
         existingBTokens = new address[](3);
 
@@ -77,7 +77,7 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking = BlueberryStaking(payable(address(proxy)));
         
-        blb.transfer(address(blueberryStaking), 1e20);
+        blb.mint(address(owner), 1e20);
 
         mockbToken1.transfer(bob, 1e18 * 200);
         mockbToken2.transfer(bob, 1e18 * 200);
@@ -112,6 +112,7 @@ contract BlueberryStakingTest is Test {
 
         bTokens[0] = existingBTokens[0];
 
+        blb.approve(address(blueberryStaking), UINT256_MAX);
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
         vm.stopPrank();
