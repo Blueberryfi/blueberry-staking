@@ -23,7 +23,7 @@ import "v3-core/libraries/FixedPoint96.sol";
 import {IBlueberryToken, IERC20} from "./interfaces/IBlueberryToken.sol";
 import {IBlueberryStaking} from "./interfaces/IBlueberryStaking.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
-import "forge-std/console2.sol";
+
 /**
  * @title Blueberry's staking contract with vesting for bdblb distribution
  * @author Blueberry Protocol
@@ -684,6 +684,8 @@ contract BlueberryStaking is
 
             if (_isBeforeFinishAt) {
                 _setRewardRate(_ibToken, _amount, _rewardDuration);
+            } else {
+                _amount = 0;
             }
 
             emit IbTokenAdded(_ibToken, _amount, block.timestamp);
@@ -843,9 +845,9 @@ contract BlueberryStaking is
      *        of the reward duration
      * @param _duration The duration, in seconds, that the rewards will be distributed over
      */
-    function _setRewardRate(address _token, uint256 _amount, uint256 _duration) internal returns (uint256 _rewardRate) {
+    function _setRewardRate(address _token, uint256 _amount, uint256 _duration) internal {
         if (_token == address(0)) revert AddressZero();
-        _rewardRate = _amount / _duration;
+        uint256 _rewardRate = _amount / _duration;
         if (_rewardRate == 0) revert InvalidRewardRate();
         rewardRate[_token] = _rewardRate;
     }

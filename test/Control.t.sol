@@ -65,7 +65,6 @@ contract Control is Test {
 
         skip(300);
         blb.mint(address(blueberryStaking), 1e18);
-        console2.log(blueberryStaking.owner());
     }
 
     // Test setting the vesting length
@@ -92,7 +91,7 @@ contract Control is Test {
 
         uint256 rewardAmount = 100e18;
         uint256 expectedRewardPerToken = 100e18 / blueberryStaking.rewardDuration();
-        console2.log("Expected Rewards: ", expectedRewardPerToken);
+
         // Create an array of addresses representing the new bTokens
         address[] memory bTokens = new address[](3);
         uint256[] memory rewardAmounts = new uint256[](3);
@@ -106,8 +105,7 @@ contract Control is Test {
         rewardAmounts[2] = rewardAmount;
 
         uint256 finishAtPreAdd = blueberryStaking.finishAt();
-        console2.log("current Time: ", block.timestamp);
-        console2.log("Finish at", finishAtPreAdd);
+
         // Add the new bTokens to the BlueberryStaking contract and update the rewards
         blueberryStaking.addIbTokens(bTokens, rewardAmounts);
 
