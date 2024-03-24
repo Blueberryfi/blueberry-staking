@@ -69,7 +69,7 @@ contract Control is Test {
         blb.approve(address(blueberryStaking), UINT256_MAX);
 
         skip(300);
-        blb.mint(address(owner), 1_000_000e18);
+        blb.mint(address(owner), 10_000_000e18);
     }
 
     // Test setting the vesting length

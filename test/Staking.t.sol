@@ -388,7 +388,19 @@ contract BlueberryStakingTest is Test {
 
         skip(14 days);
 
-        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), rewardAmounts[0] / 2 + rewardAmounts[1]), true);    
-    
+        uint256 bobsExpectedAccumulatedRewards = rewardAmounts[0] / 2 + rewardAmounts[1];
+        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);    
+
+        // Remove token
+        vm.startPrank(owner);
+        blueberryStaking.removeIbTokens(bTokens);
+
+        // Validate that a user still has rewards accumulated even after admin removes a token
+        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);
+
+        // Validate that a users rewards are the same if the rewardToken gets immediately added again
+        blueberryStaking.addIbTokens(bTokens, stakeAmounts);
+
+        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);
     }
 }
