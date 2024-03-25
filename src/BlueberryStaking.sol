@@ -114,10 +114,7 @@ contract BlueberryStaking is
     // Amount of BLB marked for redistribution after vest acceleration
     uint256 private redistributedBLB;
 
-    /**
-     * @notice A list of all the ibTokens
-     * @dev This storage variable was added on Jan 31, 2024 as part of an upgrade to improve user experience
-     */
+    /// @notice A list of all the ibTokens
     address[] public ibTokens;
 
     /// @notice Duration of the lockdrop period
@@ -691,24 +688,6 @@ contract BlueberryStaking is
         }
 
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
-    }
-
-    /// @inheritdoc IBlueberryStaking
-    function removeIbTokens(address[] calldata _ibTokens) external onlyOwner {
-        totalIbTokens -= _ibTokens.length;
-        for (uint256 i; i < _ibTokens.length; ++i) {
-            if (_ibTokens[i] == address(0)) {
-                revert AddressZero();
-            }
-
-            if (!isIbToken[_ibTokens[i]]) {
-                revert IbTokenDoesNotExist();
-            }
-
-            isIbToken[_ibTokens[i]] = false;
-        }
-
-        emit IbTokensRemoved(_ibTokens, block.timestamp);
     }
 
     /// @inheritdoc IBlueberryStaking

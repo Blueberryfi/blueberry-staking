@@ -141,29 +141,12 @@ contract Control is Test {
         // Validate that the balance of the BlueberryStaking contract is greater after adding the token
         uint256 balanceBefore = blb.balanceOf(address(blueberryStaking));
         blueberryStaking.addIbTokens(bTokens2, rewardAmounts2);
-        //assertGt(blb.balanceOf(address(blueberryStaking)), balanceBefore);
+        assertGt(blb.balanceOf(address(blueberryStaking)), balanceBefore);
 
         // Validate that the finishAt time for token1 was not updated after adding token7
         console2.log("token1 finishAt: ", blueberryStaking.finishAt(bTokens[0]));
         console2.log("token7 finish: ", blueberryStaking.finishAt(bTokens2[0]));
         assertTrue(blueberryStaking.finishAt(bTokens[0]) != blueberryStaking.finishAt(bTokens2[0]));
-    }
-
-    // Test removing existing bTokens from the contract
-    function testremoveIbTokens() public {
-        vm.startPrank(owner);
-        // Check if existing bTokens are initially present
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[0])), true);
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[1])), true);
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[2])), true);
-
-        // Remove existing bTokens from the BlueberryStaking contract
-        blueberryStaking.removeIbTokens(existingBTokens);
-
-        // Check if existing bTokens were removed successfully
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[0])), false);
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[1])), false);
-        assertEq(blueberryStaking.isIbToken(address(existingBTokens[2])), false);
     }
 
     // Test pausing and unpausing the BlueberryStaking contract

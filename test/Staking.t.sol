@@ -336,40 +336,6 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking.startVesting(bTokens);
     }
-
-    function testUnstakeAfterTokenRemoval() public {
-        uint256[] memory rewardAmounts = new uint256[](1);
-        uint256[] memory stakeAmounts = new uint256[](1);
-        address[] memory ibTokens = new address[](1);
-
-        vm.startPrank(owner);
-        rewardAmounts[0] = 1e18 * 20;
-        stakeAmounts[0] = 1e8 * 10;
-
-        ibTokens[0] = address(mockbToken1);
-
-        // Set token rewards
-        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
-
-        vm.stopPrank();
-
-        // 2. bob stakes
-        vm.startPrank(bob);
-
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-
-        blueberryStaking.stake(ibTokens, stakeAmounts);
-
-        // 3. Admin removes tokens
-        vm.startPrank(owner);
-        blueberryStaking.removeIbTokens(ibTokens);
-        
-        // 4. Bob successfully unstakes his ibTokens
-        blueberryStaking.unstake(ibTokens, stakeAmounts);
-
-        // 5. Ensure that bob has received his tokens back
-        assertEq(mockbToken1.balanceOf(bob), bobInitialBalance);
-    }
     
     function testRewardAccumulation() public {
         // Temporary variables
@@ -424,16 +390,5 @@ contract BlueberryStakingTest is Test {
 
         uint256 bobsExpectedAccumulatedRewards = rewardAmounts[0] / 2 + rewardAmounts[1];
         assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);    
-
-        // Remove token
-        vm.startPrank(owner);
-        blueberryStaking.removeIbTokens(bTokens);
-
-        // Validate that a user still has rewards accumulated even after admin removes a token
-        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);
-
-        // Validate that a users rewards are the same if the rewardToken gets immediately added again
-        blueberryStaking.addIbTokens(bTokens, stakeAmounts);
-        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);
     }
 }

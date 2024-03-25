@@ -84,8 +84,6 @@ interface IBlueberryStaking {
 
     event IbTokenAdded(address indexed ibToken, uint256 amount, uint256 timestamp);
 
-    event IbTokensRemoved(address[] indexed ibTokens, uint256 timestamp);
-
     event RewardAmountModified(address indexed ibToken, uint256 amount, uint256 timestamp);
 
     event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
@@ -269,12 +267,6 @@ interface IBlueberryStaking {
      * @param _treasury The new treasury address
      */
     function changeTreasuryAddress(address _treasury) external;
-
-    /**
-     * @notice Removes the given tokens from the list of ibTokens
-     * @param _ibTokens An array of the tokens to remove
-     */
-    function removeIbTokens(address[] calldata _ibTokens) external;
 
     /**
      * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
