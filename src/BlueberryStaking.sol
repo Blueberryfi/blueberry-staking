@@ -77,6 +77,9 @@ contract BlueberryStaking is
     /// @notice The ibtoken status for each address
     mapping(address => bool) public isIbToken;
 
+    /// @notice A mapping of the ibToken's end time, in seconds, for the current reward period
+    mapping(address => uint256) public finishAt;
+
     /// @notice The vesting schedule for each address
     mapping(address => Vest[]) public vesting;
 
@@ -92,9 +95,6 @@ contract BlueberryStaking is
 
     /// @notice The reward duration
     uint256 public rewardDuration;
-
-    /// @notice The finish time for rewards
-    uint256 public finishAt;
 
     /// @notice The length of the vesting period
     uint256 public vestLength;
@@ -188,7 +188,6 @@ contract BlueberryStaking is
         basePenaltyRatioPercent = 0.25e18;
         uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
         observationPeriod = 3600;
-        finishAt = block.timestamp + _rewardDuration;
         deployedAt = block.timestamp;
     }
 
@@ -213,7 +212,7 @@ contract BlueberryStaking is
         }
 
         rewardPerTokenStored[_ibToken] = rewardPerToken(_ibToken);
-        lastUpdateTime[_ibToken] = lastTimeRewardApplicable();
+        lastUpdateTime[_ibToken] = lastTimeRewardApplicable(_ibToken);
 
         if (_user != address(0)) {
             rewards[_user][_ibToken] = _earned(_user, _ibToken);
@@ -541,12 +540,12 @@ contract BlueberryStaking is
         }
 
         /* if the reward period has finished, that timestamp is used to calculate the reward per token. */
-
-        if (block.timestamp > finishAt) {
+        uint256 _finishAt = finishAt[_ibToken];
+        if (block.timestamp > _finishAt) {
             return
                 rewardPerTokenStored[_ibToken] +
                 ((rewardRate[_ibToken] *
-                    (finishAt - lastUpdateTime[_ibToken]) *
+                    (_finishAt - lastUpdateTime[_ibToken]) *
                     1e18) / totalSupply[_ibToken]);
         } else {
             return
@@ -579,9 +578,9 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function lastTimeRewardApplicable() public view returns (uint256) {
-        if (block.timestamp > finishAt) {
-            return finishAt;
+    function lastTimeRewardApplicable(address ibToken) public view returns (uint256) {
+        if (block.timestamp > finishAt[ibToken]) {
+            return finishAt[ibToken];
         } else {
             return block.timestamp;
         }
@@ -667,13 +666,12 @@ contract BlueberryStaking is
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
         uint256 _totalRewardsAdded;
-        bool _isBeforeFinishAt = (block.timestamp < finishAt);
         uint256 _rewardDuration = rewardDuration;
         
-        uint256 _length = _ibTokens.length;
-        totalIbTokens += _length;
+        uint256 _newTokensLength = _ibTokens.length;
+        totalIbTokens += _newTokensLength;
 
-        for (uint256 i; i < _length; ++i) {
+        for (uint256 i; i < _newTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
 
@@ -683,14 +681,11 @@ contract BlueberryStaking is
 
             isIbToken[_ibToken] = true;
             ibTokens.push(_ibToken);
-
-            if (_isBeforeFinishAt) {
-                _setRewardRate(_ibToken, _amount, _rewardDuration);
-            } else {
-                _amount = 0;
-            }
-
+            
+            finishAt[_ibToken] = block.timestamp + _rewardDuration;
             _totalRewardsAdded += _amount;
+
+            _setRewardRate(_ibToken, _amount, _rewardDuration);
 
             emit IbTokenAdded(_ibToken, _amount, block.timestamp);
         }
@@ -731,10 +726,10 @@ contract BlueberryStaking is
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
 
-            if (block.timestamp > finishAt) {
+            if (block.timestamp > finishAt[_ibToken]) {
                 _setRewardRate(_ibToken, _amount, _rewardDuration);
             } else {
-                uint256 _timeRemaining = finishAt - block.timestamp;
+                uint256 _timeRemaining = finishAt[_ibToken] - block.timestamp;
                 uint256 _leftoverRewards = _timeRemaining * rewardRate[_ibToken];
                 uint256 _rewardAmount = _amount + _leftoverRewards;
                 _setRewardRate(_ibToken, _rewardAmount, _rewardDuration);
@@ -742,11 +737,10 @@ contract BlueberryStaking is
 
             lastUpdateTime[_ibToken] = block.timestamp;
             _totalRewardsAdded += _amount;
+            finishAt[_ibToken] = block.timestamp + rewardDuration;
 
             emit RewardAmountModified(_ibToken, _amount, block.timestamp);
         }
-
-        finishAt = block.timestamp + rewardDuration;
 
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
     }

@@ -204,7 +204,7 @@ interface IBlueberryStaking {
     /**
      * @return the timestamp of the last time rewards were updated
      */
-    function lastTimeRewardApplicable() external view returns (uint256);
+    function lastTimeRewardApplicable(address ibToken) external view returns (uint256);
 
     /**
      * @dev Gets the current unlock penalty ratio, which linearly decreases from 70% to 0% over the vesting period.

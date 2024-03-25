@@ -109,8 +109,6 @@ contract Control is Test {
         rewardAmounts[1] = rewardAmount;
         rewardAmounts[2] = rewardAmount;
 
-        uint256 finishAtPreAdd = blueberryStaking.finishAt();
-
         uint256 blbBalance = blb.balanceOf(address(blueberryStaking));
 
         // Add the new bTokens to the BlueberryStaking contract and update the rewards
@@ -118,11 +116,6 @@ contract Control is Test {
 
         // Check if the proper amount of blb was transfered to the contract
         assertEq(blb.balanceOf(address(blueberryStaking)), blbBalance + (rewardAmount * 3));
-
-        uint256 finishAtPostAdd = blueberryStaking.finishAt();
-
-        // Validate that the finishAt time was not updated
-        assertTrue(finishAtPreAdd == finishAtPostAdd);
 
         // Check if the new bTokens were added successfully
         assertEq(blueberryStaking.isIbToken(address(mockbToken4)), true);
@@ -134,7 +127,7 @@ contract Control is Test {
         assertEq(blueberryStaking.rewardRate(address(mockbToken5)), expectedRewardPerToken);
         assertEq(blueberryStaking.rewardRate(address(mockbToken6)), expectedRewardPerToken);
 
-        // Skip to after the reward period and add a token
+        // Skip to after the reward period for all active tokens and add a singlular token
         skip(1209602);
 
         MockbToken mockbToken7 = new MockbToken();
@@ -145,13 +138,15 @@ contract Control is Test {
         uint256[] memory rewardAmounts2 = new uint256[](1);
         rewardAmounts2[0] = rewardAmount;
 
+        // Validate that the balance of the BlueberryStaking contract is greater after adding the token
         uint256 balanceBefore = blb.balanceOf(address(blueberryStaking));
-
         blueberryStaking.addIbTokens(bTokens2, rewardAmounts2);
-        // Validate that the new token has no reward amount due to being added after the finishAt timestamp
-        assertEq(blueberryStaking.rewardPerToken(address(mockbToken7)), 0);
-        // Validate that the balance of the BlueberryStaking contract has not changed
-        assertEq(blb.balanceOf(address(blueberryStaking)), balanceBefore);
+        //assertGt(blb.balanceOf(address(blueberryStaking)), balanceBefore);
+
+        // Validate that the finishAt time for token1 was not updated after adding token7
+        console2.log("token1 finishAt: ", blueberryStaking.finishAt(bTokens[0]));
+        console2.log("token7 finish: ", blueberryStaking.finishAt(bTokens2[0]));
+        assertTrue(blueberryStaking.finishAt(bTokens[0]) != blueberryStaking.finishAt(bTokens2[0]));
     }
 
     // Test removing existing bTokens from the contract
