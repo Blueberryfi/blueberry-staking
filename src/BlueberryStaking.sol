@@ -258,7 +258,7 @@ contract BlueberryStaking is
     function unstake(
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
-    ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
+    ) external updateRewards(msg.sender, _ibTokens) {
         if (_amounts.length != _ibTokens.length) {
             revert InvalidLength();
         }
