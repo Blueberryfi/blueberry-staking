@@ -50,7 +50,7 @@ contract BlueberryStakingTest is Test {
 
         mockUSDC = new MockUSDC();
 
-        blb = new BlueberryToken(owner, owner, block.timestamp + 30);
+        blb = new BlueberryToken(owner, owner, block.timestamp);
 
         existingBTokens = new address[](3);
 
@@ -78,7 +78,8 @@ contract BlueberryStakingTest is Test {
 
         blueberryStaking = BlueberryStaking(payable(address(proxy)));
 
-        blb.transfer(address(blueberryStaking), 1e20);
+        blb.mint(address(owner), 1e20);
+        blb.approve(address(blueberryStaking), UINT256_MAX);
 
         mockbToken1.transfer(bob, 1e8 * 200);
         mockbToken2.transfer(bob, 1e8 * 200);
@@ -387,7 +388,7 @@ contract BlueberryStakingTest is Test {
 
         skip(14 days);
 
-        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), rewardAmounts[0] / 2 + rewardAmounts[1]), true);    
-    
+        uint256 bobsExpectedAccumulatedRewards = rewardAmounts[0] / 2 + rewardAmounts[1];
+        assertEq(isCloseEnough(blueberryStaking.getAccumulatedRewards(bob), bobsExpectedAccumulatedRewards), true);    
     }
 }
