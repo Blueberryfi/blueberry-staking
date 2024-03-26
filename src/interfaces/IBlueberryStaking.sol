@@ -67,9 +67,13 @@ interface IBlueberryStaking {
 
     /// @notice Emitted when the admin updates the amount of rewards available for a reward period for a given ibToken.
     event RewardAmountModified(address indexed ibToken, uint256 amount);
-    
+
     /// @notice Emitted when a user accelerates their vesting schedule.
-    event VestingAccelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
+    event VestingAccelerated(
+        address indexed user,
+        uint256 tokensClaimed,
+        uint256 redistributedBLB
+    );
 
     /// @notice Emitted when a user completes their vesting schedule.
     event VestingCompleted(address indexed user, uint256 amount);
@@ -88,7 +92,7 @@ interface IBlueberryStaking {
 
     /// @notice Emitted when the treasury collects fees from the acceleration of vesting schedules.
     event FeeCollected(address indexed user, uint256 amount);
-    
+
     /*//////////////////////////////////////////////////
                          STRUCTS
     //////////////////////////////////////////////////*/
@@ -128,7 +132,10 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to stake
      * @param _amounts An array of the amounts of each token to stake
      */
-    function stake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function stake(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice unstakes a given amount of each token
@@ -136,7 +143,10 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to unstake
      * @param _amounts An array of the amounts of each token to unstake
      */
-    function unstake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function unstake(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice starts the vesting process for a given array of tokens
@@ -179,7 +189,10 @@ interface IBlueberryStaking {
     /**
      * @return returns true if the vesting schedule is complete for the given user and vesting index
      */
-    function isVestingComplete(address _user, uint256 _vestIndex) external view returns (bool);
+    function isVestingComplete(
+        address _user,
+        uint256 _vestIndex
+    ) external view returns (bool);
 
     /**
      * @return returns the total amount of rewards for the given ibToken
@@ -189,12 +202,17 @@ interface IBlueberryStaking {
     /**
      * @return earnedAmount the amount of rewards the given user has earned for the given ibToken
      */
-    function earned(address _account, address _ibToken) external view returns (uint256 earnedAmount);
+    function earned(
+        address _account,
+        address _ibToken
+    ) external view returns (uint256 earnedAmount);
 
     /**
      * @return the timestamp of the last time rewards were updated
      */
-    function lastTimeRewardApplicable(address ibToken) external view returns (uint256);
+    function lastTimeRewardApplicable(
+        address ibToken
+    ) external view returns (uint256);
 
     /**
      * @dev Gets the current unlock penalty ratio, which linearly decreases from 70% to 0% over the vesting period.
@@ -204,10 +222,10 @@ interface IBlueberryStaking {
      * @param _vestingScheduleIndex The index of the vesting schedule.
      * @return penaltyRatio The current unlock penalty ratio in wei.
      */
-    function getEarlyUnlockPenaltyRatio(address _user, uint256 _vestingScheduleIndex)
-        external
-        view
-        returns (uint256 penaltyRatio);
+    function getEarlyUnlockPenaltyRatio(
+        address _user,
+        uint256 _vestingScheduleIndex
+    ) external view returns (uint256 penaltyRatio);
 
     /**
      * @dev Gets the current acceleration fee ratio, which linearly decreases over the vesting period.
@@ -217,10 +235,10 @@ interface IBlueberryStaking {
      * @param _vestingScheduleIndex The index of the vesting schedule.
      * @return accelerationFee The current acceleration fee ratio.
      */
-    function getAccelerationFeeStableAsset(address _user, uint256 _vestingScheduleIndex)
-        external
-        view
-        returns (uint256 accelerationFee);
+    function getAccelerationFeeStableAsset(
+        address _user,
+        uint256 _vestingScheduleIndex
+    ) external view returns (uint256 accelerationFee);
 
     /**
      * @notice Called by the owner to change the reward rate for a given token(s)
@@ -231,7 +249,10 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to change the reward amounts for
      * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
-    function modifyRewardAmount(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function modifyRewardAmount(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice Changes the reward duration in seconds
@@ -260,17 +281,23 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to add
      * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
-    function addIbTokens(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function addIbTokens(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
      * @param _uniswapPool The new address of the uniswap pool
      * @param _observationPeriod The new observation period for the uniswap pool
      */
-    function setUniswapV3Pool(address _uniswapPool, uint32 _observationPeriod) external;
+    function setUniswapV3Pool(
+        address _uniswapPool,
+        uint32 _observationPeriod
+    ) external;
 
     /**
-     * @notice Fetches the total accumulated rewards for a given user 
+     * @notice Fetches the total accumulated rewards for a given user
      * @param _user The user's address to check for accumulated bdBLB rewards
      * @return The total accumulated rewards for the user in terms of bdBLB (18 decimals)
      */
