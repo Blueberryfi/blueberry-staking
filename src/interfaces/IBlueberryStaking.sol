@@ -107,6 +107,17 @@ interface IBlueberryStaking {
         uint256 priceUnderlying;
     }
 
+    /**
+     * @notice Struct to store data related to the Uniswap V3 pool
+     * @dev This is used to fetch the price of BLB in the stable asset
+     * @param pool The address of the Uniswap V3 pool
+     * @param observationPeriod The observation period for the Uniswap V3 pool
+     */
+    struct UniswapV3PoolInfo {
+        address pool;
+        uint32 observationPeriod;
+    }
+
     /*//////////////////////////////////////////////////
                          FUNCTIONS
     //////////////////////////////////////////////////*/
@@ -159,14 +170,8 @@ interface IBlueberryStaking {
     //////////////////////////////////////////////////*/
 
     /**
-     * @notice gets the TWAP price for BLB in StableAsset
-     * @param _secondsInPast The amount of seconds in the past to get the TWAP for
-     * @return The TWAP price
-     */
-    function fetchTWAP(uint32 _secondsInPast) external view returns (uint256);
-
-    /**
      * @notice gets the current price for BLB in StableAsset
+     * @dev Uses the Uniswap V3 TWAP pricing method after the 30 day lockdrop period in complete
      * @return _price The current price scaled to an 18 decimal fixed point number
      */
     function getPrice() external view returns (uint256 _price);

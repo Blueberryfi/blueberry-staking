@@ -50,11 +50,8 @@ contract BlueberryStaking is
     /// @notice The treasury address
     address public treasury;
 
-    /// @notice The Uniswap V3 pool address
-    address public uniswapV3Pool;
-
-    /// @notice The observation period for Uniswap V3
-    uint32 public observationPeriod;
+    /// @notice The Uniswap V3 pool data
+    UniswapV3PoolInfo private uniswapV3Info;
 
     /// @notice The total number of iBtokens
     uint256 public totalIbTokens;
@@ -116,6 +113,12 @@ contract BlueberryStaking is
 
     /// @notice The vesting length for users
     uint256 public constant VESTING_LENGTH = 52 weeks;
+
+    /// @notice The price of BLB during the 1st period of the lockdrop
+    uint256 private constant PERIOD_ONE_BLB_PRICE = 0.02e18;
+
+    /// @notice The price of BLB during the 1st period of the lockdrop
+    uint256 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
 
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
@@ -445,24 +448,29 @@ contract BlueberryStaking is
                        VIEW FUNCTIONS
     //////////////////////////////////////////////////*/
 
-    /// @inheritdoc IBlueberryStaking
-    function fetchTWAP(uint32 _secondsInPast) public view returns (uint256) {
-        IUniswapV3Pool _pool = IUniswapV3Pool(uniswapV3Pool);
+    /**
+     * @notice Fetches the TWAP price of BLB in terms of the stable asset
+     * @dev A default value of $0.04 is returned if the Uniswap V3 pool is not set
+     * @return The price of BLB in terms of the stable asset
+     */
+    function _fetchTWAP() internal view returns (uint256) {
+        UniswapV3PoolInfo memory _uniswapV3Info = uniswapV3Info;
+        IUniswapV3Pool _pool = IUniswapV3Pool(_uniswapV3Info.pool);
+        uint32 _observationPeriod = _uniswapV3Info.observationPeriod;
 
-        // max 5 days
-        if (_secondsInPast > 432_000) {
-            revert InvalidObservationTime();
+        if (address(_pool) == address(0) || _observationPeriod == 0) {
+            return PERIOD_TWO_BLB_PRICE;
         }
 
         uint32[] memory _secondsArray = new uint32[](2);
 
-        _secondsArray[0] = _secondsInPast;
+        _secondsArray[0] = _observationPeriod;
         _secondsArray[1] = 0;
 
         (int56[] memory tickCumulatives, ) = _pool.observe(_secondsArray);
 
         int56 _tickDifference = tickCumulatives[1] - tickCumulatives[0];
-        int56 _timeDifference = int32(_secondsInPast);
+        int56 _timeDifference = int32(_observationPeriod);
 
         int24 _twapTick = int24(_tickDifference / _timeDifference);
 
@@ -500,16 +508,16 @@ contract BlueberryStaking is
         uint256 _period = (block.timestamp - deployedAt) / (LOCKDROP_DURATION / 2);
         // period 1: $0.02 / blb
         if (_period < 1) {
-            _price = 0.02e18;
+            _price = PERIOD_ONE_BLB_PRICE;
         }
         // period 2: $0.04 / blb
-        else if (_period < 2 || uniswapV3Pool == address(0)) {
-            _price = 0.04e18;
+        else if (_period < 2) {
+            _price = PERIOD_TWO_BLB_PRICE;
         }
         // period 3+
         else {
             // gets the price of BLB in USD averaged over the last hour
-            _price = fetchTWAP(observationPeriod);
+            _price = _fetchTWAP();
         }
     }
 
@@ -762,12 +770,11 @@ contract BlueberryStaking is
         if (_uniswapPool == address(0)) {
             revert AddressZero();
         }
-        if (_observationPeriod == 0) {
+        if (_observationPeriod == 0 || _observationPeriod > 432_000) {
             revert InvalidObservationTime();
         }
 
-        uniswapV3Pool = _uniswapPool;
-        observationPeriod = _observationPeriod;
+        uniswapV3Info = UniswapV3PoolInfo(_uniswapPool, _observationPeriod);
     }
 
     /// @inheritdoc IBlueberryStaking
