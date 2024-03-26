@@ -253,9 +253,10 @@ contract BlueberryStaking is
     function unstake(
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
-    ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        _validateTokenAmountsArray(_ibTokens, _amounts);
-
+    ) external updateRewards(msg.sender, _ibTokens) {
+        if (_amounts.length != _ibTokens.length) {
+            revert InvalidLength();
+        }
 
         for (uint256 i; i < _ibTokens.length; ++i) {
             address _ibToken = _ibTokens[i];
@@ -728,7 +729,7 @@ contract BlueberryStaking is
 
     /// @inheritdoc IBlueberryStaking
     function setBasePenaltyRatioPercent(uint256 _ratio) external onlyOwner {
-        if (_ratio > 1e18) {
+        if (_ratio > 0.5e18) {
             revert InvalidPenaltyRatio();
         }
         basePenaltyRatioPercent = _ratio;
