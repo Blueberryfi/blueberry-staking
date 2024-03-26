@@ -70,6 +70,7 @@ contract BlueberryStakingTest is Test {
                     address(mockUSDC),
                     address(treasury),
                     1_209_600,
+                    0.25e18,
                     existingiBTokens,
                     owner
                 )

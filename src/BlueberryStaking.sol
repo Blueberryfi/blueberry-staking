@@ -93,9 +93,6 @@ contract BlueberryStaking is
     /// @notice The reward duration
     uint256 public rewardDuration;
 
-    /// @notice The length of the vesting period
-    uint256 public vestLength;
-
     /// @notice The deployment time of the contract
     uint256 public deployedAt;
 
@@ -117,6 +114,9 @@ contract BlueberryStaking is
     /// @notice Duration of the lockdrop period
     uint256 public constant LOCKDROP_DURATION = 30 days;
 
+    /// @notice The vesting length for users
+    uint256 public constant VESTING_LENGTH = 52 weeks;
+
     /*//////////////////////////////////////////////////
                         CONSTRUCTOR
     //////////////////////////////////////////////////*/
@@ -133,16 +133,17 @@ contract BlueberryStaking is
     /**
      * @notice The constructor function, called when the contract is deployed
      * @param _blb The token that will be used as rewards
-     * @param _usdc The usdc token address
+     * @param _stableAsset The stableAsset address
      * @param _treasury The treasury address
      * @param _rewardDuration The duration of the reward period
      * @param _ibTokens An array of the bTokens that can be staked
      */
     function initialize(
         address _blb,
-        address _usdc,
+        address _stableAsset,
         address _treasury,
         uint256 _rewardDuration,
+        uint256 _initialBasePenaltyRatioPercent,
         address[] memory _ibTokens,
         address _admin
     ) public initializer {
@@ -151,21 +152,9 @@ contract BlueberryStaking is
         _transferOwnership(_admin);
 
         if (
-            _blb == address(0) || _usdc == address(0) || _treasury == address(0)
+            _blb == address(0) || _stableAsset == address(0) || _treasury == address(0)
         ) {
             revert AddressZero();
-        }
-
-        if (_ibTokens.length == 0) {
-            revert InvalidLength();
-        }
-
-        for (uint256 i; i < _ibTokens.length; ++i) {
-            if (_ibTokens[i] == address(0)) {
-                revert AddressZero();
-            }
-
-            isIbToken[_ibTokens[i]] = true;
         }
 
         if (_rewardDuration == 0) {
@@ -173,15 +162,22 @@ contract BlueberryStaking is
         }
 
         blb = IBlueberryToken(_blb);
-        stableAsset = IERC20(_usdc);
+        stableAsset = IERC20(_stableAsset);
         stableDecimals = IERC20Metadata(address(stableAsset)).decimals();
         treasury = _treasury;
-        totalIbTokens = _ibTokens.length;
+
+        for (uint256 i; i < _ibTokens.length; ++i) {
+            if (_ibTokens[i] == address(0)) {
+                revert AddressZero();
+            }
+            isIbToken[_ibTokens[i]] = true;
+        }
+        
         ibTokens = _ibTokens;
+        totalIbTokens = _ibTokens.length;
+
         rewardDuration = _rewardDuration;
-        vestLength = 52 weeks;
-        basePenaltyRatioPercent = 0.25e18;
-        observationPeriod = 3600;
+        basePenaltyRatioPercent = _initialBasePenaltyRatioPercent;
         deployedAt = block.timestamp;
     }
 
@@ -223,7 +219,6 @@ contract BlueberryStaking is
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
-
         for (uint256 i; i < _ibTokens.length; ++i) {
             address _ibToken = _ibTokens[i];
 
@@ -251,9 +246,7 @@ contract BlueberryStaking is
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
     ) external updateRewards(msg.sender, _ibTokens) {
-        if (_amounts.length != _ibTokens.length) {
-            revert InvalidLength();
-        }
+        _validateTokenAmountsArray(_ibTokens, _amounts);
 
         for (uint256 i; i < _ibTokens.length; ++i) {
             address _ibToken = _ibTokens[i];
@@ -526,7 +519,7 @@ contract BlueberryStaking is
         uint256 _vestIndex
     ) public view returns (bool) {
         return
-            vesting[_user][_vestIndex].startTime + vestLength <=
+            vesting[_user][_vestIndex].startTime + VESTING_LENGTH <=
             block.timestamp;
     }
 
@@ -600,9 +593,9 @@ contract BlueberryStaking is
             penaltyRatio = basePenaltyRatioPercent;
         }
         // If the vesting period is mid-acceleration, calculate the penalty ratio based on the time passed
-        else if (_vestTimeElapsed < vestLength) {
+        else if (_vestTimeElapsed < VESTING_LENGTH) {
             penaltyRatio =
-                ((vestLength - _vestTimeElapsed).divWad(vestLength) *
+                ((VESTING_LENGTH - _vestTimeElapsed).divWad(VESTING_LENGTH) *
                     basePenaltyRatioPercent) /
                 1e18;
         }
@@ -651,7 +644,7 @@ contract BlueberryStaking is
     function addIbTokens(
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
-    ) external onlyOwner {
+    ) public onlyOwner {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
         uint256 _totalRewardsAdded;
@@ -663,6 +656,10 @@ contract BlueberryStaking is
         for (uint256 i; i < _newTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
+
+            if (_ibTokens[i] == address(0)) {
+                revert AddressZero();
+            }
 
             if (isIbToken[_ibToken]) {
                 revert IBTokenAlreadyExists();

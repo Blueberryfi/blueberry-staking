@@ -59,6 +59,7 @@ contract Control is Test {
                     address(mockUSDC),
                     address(treasury),
                     REWARD_DURATION,
+                    0.25e18,
                     existingIbTokens,
                     owner
                 )
