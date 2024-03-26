@@ -536,21 +536,11 @@ contract BlueberryStaking is
             return rewardPerTokenStored[_ibToken];
         }
 
-        /* if the reward period has finished, that timestamp is used to calculate the reward per token. */
-        uint256 _finishAt = finishAt[_ibToken];
-        if (block.timestamp > _finishAt) {
-            return
-                rewardPerTokenStored[_ibToken] +
-                ((rewardRate[_ibToken] *
-                    (_finishAt - lastUpdateTime[_ibToken]) *
-                    1e18) / totalSupply[_ibToken]);
-        } else {
-            return
-                rewardPerTokenStored[_ibToken] +
-                ((rewardRate[_ibToken] *
-                    (block.timestamp - lastUpdateTime[_ibToken]) *
-                    1e18) / totalSupply[_ibToken]);
-        }
+        return
+            rewardPerTokenStored[_ibToken] +
+            ((rewardRate[_ibToken] *
+                (lastTimeRewardApplicable(_ibToken) - lastUpdateTime[_ibToken]) *
+                1e18) / totalSupply[_ibToken]);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -704,18 +694,16 @@ contract BlueberryStaking is
         for (uint256 i; i < _ibTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
             uint256 _amount = _amounts[i];
+            _totalRewardsAdded += _amount;
 
-            if (block.timestamp > finishAt[_ibToken]) {
-                _setRewardRate(_ibToken, _amount, _rewardDuration);
-            } else {
+            if (block.timestamp <= finishAt[_ibToken]) {
                 uint256 _timeRemaining = finishAt[_ibToken] - block.timestamp;
                 uint256 _leftoverRewards = _timeRemaining * rewardRate[_ibToken];
-                uint256 _rewardAmount = _amount + _leftoverRewards;
-                _setRewardRate(_ibToken, _rewardAmount, _rewardDuration);
+                _amount += _leftoverRewards;                
             }
 
+            _setRewardRate(_ibToken, _amount, _rewardDuration);
             lastUpdateTime[_ibToken] = block.timestamp;
-            _totalRewardsAdded += _amount;
             finishAt[_ibToken] = block.timestamp + rewardDuration;
 
             emit RewardAmountModified(_ibToken, _amount, block.timestamp);

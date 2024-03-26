@@ -240,14 +240,14 @@ contract Control is Test {
             assertEq(rewardRate, 1e18);
         }
 
-        skip(90 days);
+        skip(7 days);
 
-        // Add new Reward Amounts in the middle of reward period
+        // Add new Reward Amounts in the middle of reward period & expect the reward rate to increase 50%
         blueberryStaking.modifyRewardAmount(existingBTokens, amounts);
 
         for (uint256 i=0; i < length; ++i) {
             uint256 rewardRate = blueberryStaking.rewardRate(existingBTokens[i]);
-            assertEq(rewardRate, 1e18);
+            assertEq(rewardRate, 1.5e18);
         }
     }
 }
