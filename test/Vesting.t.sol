@@ -5,16 +5,16 @@ import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
-import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking public blueberryStaking;
     BlueberryToken public blb;
-    IERC20 public mockbToken1;
-    IERC20 public mockbToken2;
-    IERC20 public mockbToken3;
+    IERC20 public mockIbToken1;
+    IERC20 public mockIbToken2;
+    IERC20 public mockIbToken3;
 
     IERC20 public mockUSDC;
 
@@ -43,9 +43,9 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(owner);
 
-        mockbToken1 = new MockbToken();
-        mockbToken2 = new MockbToken();
-        mockbToken3 = new MockbToken();
+        mockIbToken1 = new MockIbToken();
+        mockIbToken2 = new MockIbToken();
+        mockIbToken3 = new MockIbToken();
 
         mockUSDC = new MockUSDC();
 
@@ -53,9 +53,9 @@ contract BlueberryStakingTest is Test {
 
         existingBTokens = new address[](3);
 
-        existingBTokens[0] = address(mockbToken1);
-        existingBTokens[1] = address(mockbToken2);
-        existingBTokens[2] = address(mockbToken3);
+        existingBTokens[0] = address(mockIbToken1);
+        existingBTokens[1] = address(mockIbToken2);
+        existingBTokens[2] = address(mockIbToken3);
 
         blueberryStaking = new BlueberryStaking();
 
@@ -79,21 +79,21 @@ contract BlueberryStakingTest is Test {
         
         blb.mint(address(owner), 1e20);
 
-        mockbToken1.transfer(bob, 1e18 * 200);
-        mockbToken2.transfer(bob, 1e18 * 200);
-        mockbToken3.transfer(bob, 1e18 * 200);
+        mockIbToken1.transfer(bob, 1e18 * 200);
+        mockIbToken2.transfer(bob, 1e18 * 200);
+        mockIbToken3.transfer(bob, 1e18 * 200);
 
-        mockbToken1.transfer(sally, 1e18 * 200);
-        mockbToken2.transfer(sally, 1e18 * 200);
-        mockbToken3.transfer(sally, 1e18 * 200);
+        mockIbToken1.transfer(sally, 1e18 * 200);
+        mockIbToken2.transfer(sally, 1e18 * 200);
+        mockIbToken3.transfer(sally, 1e18 * 200);
 
-        mockbToken1.transfer(dan, 1e18 * 200);
-        mockbToken2.transfer(dan, 1e18 * 200);
-        mockbToken3.transfer(dan, 1e18 * 200);
+        mockIbToken1.transfer(dan, 1e18 * 200);
+        mockIbToken2.transfer(dan, 1e18 * 200);
+        mockIbToken3.transfer(dan, 1e18 * 200);
 
-        mockbToken1.transfer(alice, 1e18 * 200);
-        mockbToken2.transfer(alice, 1e18 * 200);
-        mockbToken3.transfer(alice, 1e18 * 200);
+        mockIbToken1.transfer(alice, 1e18 * 200);
+        mockIbToken2.transfer(alice, 1e18 * 200);
+        mockIbToken3.transfer(alice, 1e18 * 200);
 
         mockUSDC.transfer(bob, 1e10);
         mockUSDC.transfer(sally, 1e10);
@@ -120,22 +120,22 @@ contract BlueberryStakingTest is Test {
         // 2. bob, sally, dan, and alice each stake 10 of each bToken
 
         vm.startPrank(bob);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(sally);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(dan);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
         vm.stopPrank();
 

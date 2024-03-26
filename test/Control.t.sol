@@ -5,7 +5,7 @@ import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
-import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MockToken} from "./mocks/MockToken.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -13,9 +13,9 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 contract Control is Test {
     BlueberryStaking blueberryStaking;
     BlueberryToken blb;
-    IERC20 mockbToken1;
-    IERC20 mockbToken2;
-    IERC20 mockbToken3;
+    IERC20 mockIbToken1;
+    IERC20 mockIbToken2;
+    IERC20 mockIbToken3;
 
     IERC20 mockUSDC;
 
@@ -31,9 +31,9 @@ contract Control is Test {
     function setUp() public {
         vm.startPrank(owner);
         // Deploy mock tokens and BlueberryToken
-        mockbToken1 = new MockbToken();
-        mockbToken2 = new MockbToken();
-        mockbToken3 = new MockbToken();
+        mockIbToken1 = new MockIbToken();
+        mockIbToken2 = new MockIbToken();
+        mockIbToken3 = new MockIbToken();
         mockUSDC = new MockUSDC();
 
         blb = new BlueberryToken(address(this), owner, block.timestamp);
@@ -42,9 +42,9 @@ contract Control is Test {
         existingBTokens = new address[](3);
 
         // Assign addresses of mock tokens to existingBTokens array
-        existingBTokens[0] = address(mockbToken1);
-        existingBTokens[1] = address(mockbToken2);
-        existingBTokens[2] = address(mockbToken3);
+        existingBTokens[0] = address(mockIbToken1);
+        existingBTokens[1] = address(mockIbToken2);
+        existingBTokens[2] = address(mockIbToken3);
 
         // Deploy BlueberryStaking contract and transfer BLB tokens
         blueberryStaking = new BlueberryStaking();
@@ -90,9 +90,9 @@ contract Control is Test {
     function testAddIbTokens() public {
         vm.startPrank(owner);
         // Deploy new mock tokens
-        IERC20 mockbToken4 = new MockbToken();
-        IERC20 mockbToken5 = new MockbToken();
-        IERC20 mockbToken6 = new MockbToken();
+        IERC20 mockIbToken4 = new MockIbToken();
+        IERC20 mockIbToken5 = new MockIbToken();
+        IERC20 mockIbToken6 = new MockIbToken();
 
         uint256 rewardAmount = 100e18;
         uint256 expectedRewardPerToken = 100e18 / blueberryStaking.rewardDuration();
@@ -101,9 +101,9 @@ contract Control is Test {
         address[] memory bTokens = new address[](3);
         uint256[] memory rewardAmounts = new uint256[](3);
 
-        bTokens[0] = address(mockbToken4);
-        bTokens[1] = address(mockbToken5);
-        bTokens[2] = address(mockbToken6);
+        bTokens[0] = address(mockIbToken4);
+        bTokens[1] = address(mockIbToken5);
+        bTokens[2] = address(mockIbToken6);
 
         rewardAmounts[0] = rewardAmount;
         rewardAmounts[1] = rewardAmount;
@@ -118,22 +118,22 @@ contract Control is Test {
         assertEq(blb.balanceOf(address(blueberryStaking)), blbBalance + (rewardAmount * 3));
 
         // Check if the new bTokens were added successfully
-        assertEq(blueberryStaking.isIbToken(address(mockbToken4)), true);
-        assertEq(blueberryStaking.isIbToken(address(mockbToken5)), true);
-        assertEq(blueberryStaking.isIbToken(address(mockbToken6)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockIbToken4)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockIbToken5)), true);
+        assertEq(blueberryStaking.isIbToken(address(mockIbToken6)), true);
 
         // Validate that the new tokens have reward amounts
-        assertEq(blueberryStaking.rewardRate(address(mockbToken4)), expectedRewardPerToken);
-        assertEq(blueberryStaking.rewardRate(address(mockbToken5)), expectedRewardPerToken);
-        assertEq(blueberryStaking.rewardRate(address(mockbToken6)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockIbToken4)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockIbToken5)), expectedRewardPerToken);
+        assertEq(blueberryStaking.rewardRate(address(mockIbToken6)), expectedRewardPerToken);
 
         // Skip to after the reward period for all active tokens and add a singlular token
         skip(1209602);
 
-        MockbToken mockbToken7 = new MockbToken();
+        MockIbToken mockIbToken7 = new MockIbToken();
 
         address[] memory bTokens2 = new address[](1);
-        bTokens2[0] = address(mockbToken7);
+        bTokens2[0] = address(mockIbToken7);
 
         uint256[] memory rewardAmounts2 = new uint256[](1);
         rewardAmounts2[0] = rewardAmount;

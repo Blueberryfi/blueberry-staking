@@ -38,8 +38,6 @@ interface IBlueberryStaking {
 
     error InvalidAmount();
 
-    error InvalidbToken();
-
     error ZeroEmissionSchedules();
 
     error TransferFailed();
@@ -58,7 +56,7 @@ interface IBlueberryStaking {
 
     error InvalidObservationTime();
 
-    error BTokenAlreadyExists();
+    error IBTokenAlreadyExists();
 
     error AlreadyClaimed();
 

@@ -664,7 +664,7 @@ contract BlueberryStaking is
             uint256 _amount = _amounts[i];
 
             if (isIbToken[_ibToken]) {
-                revert BTokenAlreadyExists();
+                revert IBTokenAlreadyExists();
             }
 
             isIbToken[_ibToken] = true;

@@ -5,16 +5,16 @@ import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
-import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking public blueberryStaking;
     BlueberryToken public blb;
-    IERC20 public mockbToken1;
-    IERC20 public mockbToken2;
-    IERC20 public mockbToken3;
+    IERC20 public mockIbToken1;
+    IERC20 public mockIbToken2;
+    IERC20 public mockIbToken3;
 
     IERC20 public mockUSDC;
 
@@ -44,9 +44,9 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(owner);
 
-        mockbToken1 = new MockbToken();
-        mockbToken2 = new MockbToken();
-        mockbToken3 = new MockbToken();
+        mockIbToken1 = new MockIbToken();
+        mockIbToken2 = new MockIbToken();
+        mockIbToken3 = new MockIbToken();
 
         mockUSDC = new MockUSDC();
 
@@ -54,9 +54,9 @@ contract BlueberryStakingTest is Test {
 
         existingBTokens = new address[](3);
 
-        existingBTokens[0] = address(mockbToken1);
-        existingBTokens[1] = address(mockbToken2);
-        existingBTokens[2] = address(mockbToken3);
+        existingBTokens[0] = address(mockIbToken1);
+        existingBTokens[1] = address(mockIbToken2);
+        existingBTokens[2] = address(mockIbToken3);
 
         blueberryStaking = new BlueberryStaking();
 
@@ -81,17 +81,17 @@ contract BlueberryStakingTest is Test {
         blb.mint(address(owner), 1e20);
         blb.approve(address(blueberryStaking), UINT256_MAX);
 
-        mockbToken1.transfer(bob, 1e8 * 200);
-        mockbToken2.transfer(bob, 1e8 * 200);
-        mockbToken3.transfer(bob, 1e8 * 200);
+        mockIbToken1.transfer(bob, 1e8 * 200);
+        mockIbToken2.transfer(bob, 1e8 * 200);
+        mockIbToken3.transfer(bob, 1e8 * 200);
 
-        mockbToken1.transfer(sally, 1e8 * 200);
-        mockbToken2.transfer(sally, 1e8 * 200);
-        mockbToken3.transfer(sally, 1e8 * 200);
+        mockIbToken1.transfer(sally, 1e8 * 200);
+        mockIbToken2.transfer(sally, 1e8 * 200);
+        mockIbToken3.transfer(sally, 1e8 * 200);
 
-        mockbToken1.transfer(dan, 1e8 * 200);
-        mockbToken2.transfer(dan, 1e8 * 200);
-        mockbToken3.transfer(dan, 1e8 * 200);
+        mockIbToken1.transfer(dan, 1e8 * 200);
+        mockIbToken2.transfer(dan, 1e8 * 200);
+        mockIbToken3.transfer(dan, 1e8 * 200);
 
         mockUSDC.transfer(bob, 1e10);
         mockUSDC.transfer(sally, 1e10);
@@ -115,7 +115,7 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockbToken1);
+        bTokens[0] = address(mockIbToken1);
 
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
@@ -125,7 +125,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(bob);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -135,9 +135,9 @@ contract BlueberryStakingTest is Test {
 
         // 3.5 Ensure that the rewards are half of the total rewards given that half of the reward period has passed
 
-        console2.log("bob earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+        console2.log("bob earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
-        assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockbToken1)), rewardAmounts[0] / 2), true);
+        assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockIbToken1)), rewardAmounts[0] / 2), true);
 
         // 4. Start vesting
 
@@ -166,35 +166,35 @@ contract BlueberryStakingTest is Test {
         stakeAmounts[0] = 1e8 * 50;
 
         address[] memory bTokens = new address[](1);
-        bTokens[0] = address(mockbToken1);
+        bTokens[0] = address(mockIbToken1);
 
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
         vm.stopPrank();
 
         vm.startPrank(bob);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
 
         skip(7 days);
 
-        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
 
         skip(7 days);
 
-        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
 
         skip(7 days);
 
-        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockbToken1)));
+        console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         blueberryStaking.stake(bTokens, stakeAmounts);
     }
 
@@ -213,7 +213,7 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockbToken1);
+        bTokens[0] = address(mockIbToken1);
 
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
@@ -223,7 +223,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(bob);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -231,7 +231,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(sally);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -239,7 +239,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(dan);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -251,13 +251,13 @@ contract BlueberryStakingTest is Test {
 
         // 3.5 Ensure that the rewards distributed 50/50 between bob and sally
 
-        assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockbToken1)), rewardAmounts[0] / 3), true);
+        assertEq(isCloseEnough(blueberryStaking.earned(address(bob), address(mockIbToken1)), rewardAmounts[0] / 3), true);
 
         assertEq(
-            isCloseEnough(blueberryStaking.earned(address(sally), address(mockbToken1)), rewardAmounts[0] / 3), true
+            isCloseEnough(blueberryStaking.earned(address(sally), address(mockIbToken1)), rewardAmounts[0] / 3), true
         );
 
-        assertEq(isCloseEnough(blueberryStaking.earned(address(dan), address(mockbToken1)), rewardAmounts[0] / 3), true);
+        assertEq(isCloseEnough(blueberryStaking.earned(address(dan), address(mockIbToken1)), rewardAmounts[0] / 3), true);
 
         // 4. Start vesting
 
@@ -310,7 +310,7 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockbToken1);
+        bTokens[0] = address(mockIbToken1);
 
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
 
@@ -320,7 +320,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(bob);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -330,7 +330,7 @@ contract BlueberryStakingTest is Test {
 
         // 3.5 ensure that all tokens have been unstaked
 
-        assertEq(mockbToken1.balanceOf(bob), bobInitialBalance);
+        assertEq(mockIbToken1.balanceOf(bob), bobInitialBalance);
 
         // 3.6 ensure that bob can still start vesting
 
@@ -359,9 +359,9 @@ contract BlueberryStakingTest is Test {
         stakeAmounts[1] = 1e8 * 10;
         sallyStakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockbToken1);
-        bTokens[1] = address(mockbToken2);
-        sallybTokens[0] = address(mockbToken1);
+        bTokens[0] = address(mockIbToken1);
+        bTokens[1] = address(mockIbToken2);
+        sallybTokens[0] = address(mockIbToken1);
 
         blueberryStaking.setIbTokenArray(bTokens);
         blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
@@ -372,8 +372,8 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(bob);
 
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        mockbToken2.approve(address(blueberryStaking), stakeAmounts[1]);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        mockIbToken2.approve(address(blueberryStaking), stakeAmounts[1]);
 
         blueberryStaking.stake(bTokens, stakeAmounts);
 
@@ -381,7 +381,7 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(sally);
 
-        mockbToken1.approve(address(blueberryStaking), sallyStakeAmounts[0]);
+        mockIbToken1.approve(address(blueberryStaking), sallyStakeAmounts[0]);
         blueberryStaking.stake(sallybTokens, sallyStakeAmounts);
 
         vm.stopPrank();

@@ -2,7 +2,7 @@
 Token Distribution 2.0 aims to address common issues found in early token distributions, such as short-term liquidity and reward allocations that don't align with the long-term goals of the protocol. Blueberry introduces an innovative mechanism for a fair token distribution and launch: Bonded Blueberry ($bdBLB). Expanded below - 
 
 **Bonded Blueberry ($bdBLB)**
-Bonded Blueberry is the vesting rewards token, distributed every two weeks to those holding bTokens, the receipt token for lending on Blueberry markets.
+Bonded Blueberry is the vesting rewards token, distributed every two weeks to those holding ibTokens, the receipt token for lending on Blueberry markets.
 
 Bonded Blueberry is the vesting governance token. 1 $bdBLB is redeemable for 1 $BLB over the course of 1 year. However, this vesting concept differs from traditional vesting, which unlocks tokens over time.
 Instead, $bdBLB introduces an Acceleration Fee Vesting model based on the Early Unlock Peanlty Ratio.
