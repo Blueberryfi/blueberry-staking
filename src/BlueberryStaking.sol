@@ -121,6 +121,23 @@ contract BlueberryStaking is
     uint256 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
 
     /*//////////////////////////////////////////////////
+                        MODIFIERS
+    //////////////////////////////////////////////////*/
+
+    /**
+     * @notice updates the rewards for a given user and a given array of tokens
+     * @param _user The user to update the rewards for
+     * @param _ibTokens An array of tokens to update the rewards for
+     */
+    modifier updateRewards(address _user, address[] calldata _ibTokens) {
+        uint256 _ibTokensLength = _ibTokens.length;
+        for (uint256 i; i < _ibTokensLength; ++i) {
+            _updateReward(_user, _ibTokens[i]);
+        }
+        _;
+    }
+
+    /*//////////////////////////////////////////////////
                         CONSTRUCTOR
     //////////////////////////////////////////////////*/
 
@@ -169,33 +186,19 @@ contract BlueberryStaking is
         stableDecimals = IERC20Metadata(address(stableAsset)).decimals();
         treasury = _treasury;
 
-        for (uint256 i; i < _ibTokens.length; ++i) {
+        ibTokens = _ibTokens;
+        totalIbTokens = _ibTokens.length;
+        
+        for (uint256 i; i < totalIbTokens; ++i) {
             if (_ibTokens[i] == address(0)) {
                 revert AddressZero();
             }
             isIbToken[_ibTokens[i]] = true;
         }
-        
-        ibTokens = _ibTokens;
-        totalIbTokens = _ibTokens.length;
 
         rewardDuration = _rewardDuration;
         basePenaltyRatioPercent = _initialBasePenaltyRatioPercent;
         deployedAt = block.timestamp;
-    }
-
-    /**
-     * @notice updates the rewards for a given user and a given array of tokens
-     * @param _user The user to update the rewards for
-     * @param _ibTokens An array of tokens to update the rewards for
-     */
-    modifier updateRewards(address _user, address[] calldata _ibTokens) {
-        for (uint256 i; i < _ibTokens.length; ++i) {
-            address _ibToken = _ibTokens[i];
-
-            _updateReward(_user, _ibToken);
-        }
-        _;
     }
 
     /// Contains the logic for updateReward function
@@ -221,8 +224,9 @@ contract BlueberryStaking is
         uint256[] calldata _amounts
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
         _validateTokenAmountsArray(_ibTokens, _amounts);
-
-        for (uint256 i; i < _ibTokens.length; ++i) {
+        
+        uint256 _ibTokensLength = _ibTokens.length;
+        for (uint256 i; i < _ibTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
 
             if (!isIbToken[_ibToken]) {
@@ -251,7 +255,8 @@ contract BlueberryStaking is
     ) external updateRewards(msg.sender, _ibTokens) {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
-        for (uint256 i; i < _ibTokens.length; ++i) {
+        uint256 _ibTokensLength = _ibTokens.length;
+        for (uint256 i; i < _ibTokensLength; ++i) {
             address _ibToken = _ibTokens[i];
 
             if (!isIbToken[address(_ibToken)]) {
@@ -300,7 +305,9 @@ contract BlueberryStaking is
         address[] calldata _ibTokens
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
         uint256 totalRewards;
-        for (uint256 i; i < _ibTokens.length; ++i) {
+
+        uint256 _ibTokensLength = _ibTokens.length;
+        for (uint256 i; i < _ibTokensLength; ++i) {
             if (!isIbToken[address(_ibTokens[i])]) {
                 revert InvalidIbToken();
             }
@@ -330,12 +337,13 @@ contract BlueberryStaking is
         uint256[] calldata _vestIndexes
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         Vest[] storage vests = vesting[msg.sender];
-        if (vesting[msg.sender].length < _vestIndexes.length) {
+        uint256 vestIndexLength = vests.length;
+        if (vesting[msg.sender].length < vestIndexLength) {
             revert InvalidLength();
         }
 
         uint256 totalbdblb;
-        for (uint256 i; i < _vestIndexes.length; ++i) {
+        for (uint256 i; i < vestIndexLength; ++i) {
             Vest storage v = vests[_vestIndexes[i]];
 
             if (!isVestingComplete(msg.sender, _vestIndexes[i])) {
@@ -363,7 +371,8 @@ contract BlueberryStaking is
         uint256[] calldata _vestIndexes
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         // index must exist
-        if (vesting[msg.sender].length < _vestIndexes.length) {
+        uint256 vestIndexLength = _vestIndexes.length;
+        if (vesting[msg.sender].length < vestIndexLength) {
             revert InvalidLength();
         }
 
@@ -377,7 +386,7 @@ contract BlueberryStaking is
         uint256 totalbdblb;
         uint256 totalRedistributedAmount;
         uint256 totalAccelerationFee;
-        for (uint256 i; i < _vestIndexes.length; ++i) {
+        for (uint256 i; i < vestIndexLength; ++i) {
             uint256 _vestIndex = _vestIndexes[i];
             Vest storage _vest = vests[_vestIndex];
             uint256 _vestTotal = _vest.amount + _vest.extra;
@@ -575,14 +584,15 @@ contract BlueberryStaking is
     }
 
     /**
-     * @return the total amount of vesting tokens (bdblb)
+     * @return _balance total amount of vesting tokens for a given user (bdblb)
      */
-    function bdblbBalance(address _user) public view returns (uint256) {
-        uint256 _balance;
-        for (uint256 i; i < vesting[_user].length; ++i) {
-            _balance += vesting[_user][i].amount + vesting[_user][i].extra;
+    function bdblbBalance(address _user) public view returns (uint256 _balance) {
+        Vest[] memory _userVests = vesting[_user];
+
+        uint256 length = _userVests.length;
+        for (uint256 i; i < length; ++i) {
+            _balance += _userVests[i].amount + _userVests[i].extra;
         }
-        return _balance;
     }
 
     /// @inheritdoc IBlueberryStaking
