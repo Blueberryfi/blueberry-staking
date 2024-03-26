@@ -261,10 +261,10 @@ interface IBlueberryStaking {
     function setBasePenaltyRatioPercent(uint256 _ratio) external;
 
     /**
-     * @notice Changes the address of the treasury
+     * @notice Sets the address of the treasury
      * @param _treasury The new treasury address
      */
-    function changeTreasuryAddress(address _treasury) external;
+    function setTreasury(address _treasury) external;
 
     /**
      * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
@@ -276,25 +276,11 @@ interface IBlueberryStaking {
     function addIbTokens(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
 
     /**
-     * @notice Change the blb token address (in case of migration)
-     */
-    function changeBLB(address _blb) external;
-
-    /**
-     * @notice Changes the information for the uniswap pool to fetch the price of BLB
+     * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
      * @param _uniswapPool The new address of the uniswap pool
-     * @param _uniswapFactory The new address of the uniswap factory
      * @param _observationPeriod The new observation period for the uniswap pool
      */
-    function changeUniswapInformation(address _uniswapPool, address _uniswapFactory, uint32 _observationPeriod)
-        external;
-
-    /**
-     * @notice Sets the initial ibTokens array
-     * @dev This function can only be called once by the owner
-     * @param _ibTokens Set the ibTokens array
-     */
-    function setIbTokenArray(address[] calldata _ibTokens) external;
+    function setUniswapV3Pool(address _uniswapPool, uint32 _observationPeriod) external;
 
     /**
      * @notice Fetches the total accumulated rewards for a given user 

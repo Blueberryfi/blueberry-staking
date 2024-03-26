@@ -53,9 +53,6 @@ contract BlueberryStaking is
     /// @notice The Uniswap V3 pool address
     address public uniswapV3Pool;
 
-    /// @notice The Uniswap V3 factory address
-    address public uniswapV3Factory;
-
     /// @notice The observation period for Uniswap V3
     uint32 public observationPeriod;
 
@@ -180,10 +177,10 @@ contract BlueberryStaking is
         stableDecimals = IERC20Metadata(address(stableAsset)).decimals();
         treasury = _treasury;
         totalIbTokens = _ibTokens.length;
+        ibTokens = _ibTokens;
         rewardDuration = _rewardDuration;
         vestLength = 52 weeks;
         basePenaltyRatioPercent = 0.25e18;
-        uniswapV3Factory = address(0x1F98431c8aD98523631AE4a59f267346ea31F984);
         observationPeriod = 3600;
         deployedAt = block.timestamp;
     }
@@ -632,19 +629,21 @@ contract BlueberryStaking is
             (10 ** (18 - stableDecimals));
     }
 
+    /// @inheritdoc IBlueberryStaking
+    function getAccumulatedRewards(address _user) external view returns (uint256 _totalRewards) {
+        address[] memory cachedTokens = ibTokens;
+        uint256 cachedLength = cachedTokens.length;
+
+        for (uint256 i; i < cachedLength; ++i) {
+            if (isIbToken[cachedTokens[i]]) {
+                _totalRewards += _earned(_user, cachedTokens[i]);
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////
                          MANAGEMENT
     //////////////////////////////////////////////////*/
-
-    /// @inheritdoc IBlueberryStaking
-    function changeBLB(address _blb) external onlyOwner {
-        if (_blb == address(0)) {
-            revert AddressZero();
-        }
-        blb = IBlueberryToken(_blb);
-
-        emit BLBUpdated(_blb, block.timestamp);
-    }
 
     /// @inheritdoc IBlueberryStaking
     function addIbTokens(
@@ -738,10 +737,10 @@ contract BlueberryStaking is
     }
 
     /**
-     * @notice Changes the address of stable asset to an alternative in the event of a depeg
+     * @notice Sets the  stable asset to an alternative in the event of a depeg
      * @param _stableAsset The new stable asset address
      */
-    function changeStableAddress(address _stableAsset) external onlyOwner {
+    function setStableAsset(address _stableAsset) external onlyOwner {
         if (_stableAsset == address(0)) {
             revert AddressZero();
         }
@@ -754,7 +753,7 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function changeTreasuryAddress(address _treasury) external onlyOwner {
+    function setTreasury(address _treasury) external onlyOwner {
         if (_treasury == address(0)) {
             revert AddressZero();
         }
@@ -764,12 +763,11 @@ contract BlueberryStaking is
     }
 
     /// @inheritdoc IBlueberryStaking
-    function changeUniswapInformation(
+    function setUniswapV3Pool(
         address _uniswapPool,
-        address _uniswapFactory,
         uint32 _observationPeriod
     ) external onlyOwner {
-        if (_uniswapPool == address(0) || _uniswapFactory == address(0)) {
+        if (_uniswapPool == address(0)) {
             revert AddressZero();
         }
         if (_observationPeriod == 0) {
@@ -777,7 +775,6 @@ contract BlueberryStaking is
         }
 
         uniswapV3Pool = _uniswapPool;
-        uniswapV3Factory = _uniswapFactory;
         observationPeriod = _observationPeriod;
     }
 
@@ -789,27 +786,6 @@ contract BlueberryStaking is
     /// @inheritdoc IBlueberryStaking
     function unpause() external onlyOwner {
         _unpause();
-    }
-
-    /// @inheritdoc IBlueberryStaking
-    function setIbTokenArray(address[] calldata _ibTokens) external onlyOwner {
-        // Make sure the storage variable has already been set
-        if (ibTokens.length > 0) {
-            revert ArrayAlreadySet();
-        }
-        ibTokens = _ibTokens;
-    }
-    
-    /// @inheritdoc IBlueberryStaking
-    function getAccumulatedRewards(address _user) external view returns (uint256 _totalRewards) {
-        address[] memory cachedTokens = ibTokens;
-        uint256 cachedLength = cachedTokens.length;
-
-        for (uint256 i; i < cachedLength; ++i) {
-            if (isIbToken[cachedTokens[i]]) {
-                _totalRewards += _earned(_user, cachedTokens[i]);
-            }
-        }
     }
 
     /**

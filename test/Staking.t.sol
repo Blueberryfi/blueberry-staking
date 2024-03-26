@@ -20,7 +20,7 @@ contract BlueberryStakingTest is Test {
 
     address public treasury = makeAddr("treasury");
 
-    address[] public existingBTokens;
+    address[] public existingiBTokens;
 
     address public bob = makeAddr("bob");
     address public sally = makeAddr("sally");
@@ -52,11 +52,11 @@ contract BlueberryStakingTest is Test {
 
         blb = new BlueberryToken(owner, owner, block.timestamp);
 
-        existingBTokens = new address[](3);
+        existingiBTokens = new address[](3);
 
-        existingBTokens[0] = address(mockIbToken1);
-        existingBTokens[1] = address(mockIbToken2);
-        existingBTokens[2] = address(mockIbToken3);
+        existingiBTokens[0] = address(mockIbToken1);
+        existingiBTokens[1] = address(mockIbToken2);
+        existingiBTokens[2] = address(mockIbToken3);
 
         blueberryStaking = new BlueberryStaking();
 
@@ -70,7 +70,7 @@ contract BlueberryStakingTest is Test {
                     address(mockUSDC),
                     address(treasury),
                     1_209_600,
-                    existingBTokens,
+                    existingiBTokens,
                     owner
                 )
             )
@@ -105,7 +105,7 @@ contract BlueberryStakingTest is Test {
 
         uint256[] memory rewardAmounts = new uint256[](1);
         uint256[] memory stakeAmounts = new uint256[](1);
-        address[] memory bTokens = new address[](1);
+        address[] memory ibTokens = new address[](1);
 
         // 1. Notify the new rewards amount (1e18 * 20) for the reward period
 
@@ -115,9 +115,9 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockIbToken1);
+        ibTokens[0] = address(mockIbToken1);
 
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -127,7 +127,7 @@ contract BlueberryStakingTest is Test {
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         // 3. Half the reward period passes and it becomes claimable
 
@@ -141,7 +141,7 @@ contract BlueberryStakingTest is Test {
 
         // 4. Start vesting
 
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
 
         // 5. 1 year passes, all rewards should be fully vested
 
@@ -165,37 +165,37 @@ contract BlueberryStakingTest is Test {
         uint256[] memory stakeAmounts = new uint256[](1);
         stakeAmounts[0] = 1e8 * 50;
 
-        address[] memory bTokens = new address[](1);
-        bTokens[0] = address(mockIbToken1);
+        address[] memory ibTokens = new address[](1);
+        ibTokens[0] = address(mockIbToken1);
 
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
         vm.stopPrank();
 
         vm.startPrank(bob);
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         skip(7 days);
 
         console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         skip(7 days);
 
         console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         skip(7 days);
 
         console2.log("earned: %s", blueberryStaking.earned(address(bob), address(mockIbToken1)));
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
     }
 
     function testVestYieldsRewardsCorrectlyForMultipleStakers() public {
@@ -203,7 +203,7 @@ contract BlueberryStakingTest is Test {
 
         uint256[] memory rewardAmounts = new uint256[](1);
         uint256[] memory stakeAmounts = new uint256[](1);
-        address[] memory bTokens = new address[](1);
+        address[] memory ibTokens = new address[](1);
 
         // 1. Notify the new rewards amount (1e18 * 20) for the reward period
 
@@ -213,9 +213,9 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockIbToken1);
+        ibTokens[0] = address(mockIbToken1);
 
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -225,7 +225,7 @@ contract BlueberryStakingTest is Test {
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         vm.stopPrank();
 
@@ -233,7 +233,7 @@ contract BlueberryStakingTest is Test {
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         vm.stopPrank();
 
@@ -241,7 +241,7 @@ contract BlueberryStakingTest is Test {
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         vm.stopPrank();
 
@@ -263,13 +263,13 @@ contract BlueberryStakingTest is Test {
 
         vm.startPrank(bob);
 
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
 
         vm.stopPrank();
 
         vm.startPrank(sally);
 
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
 
         vm.stopPrank();
 
@@ -300,7 +300,7 @@ contract BlueberryStakingTest is Test {
 
         uint256[] memory rewardAmounts = new uint256[](1);
         uint256[] memory stakeAmounts = new uint256[](1);
-        address[] memory bTokens = new address[](1);
+        address[] memory ibTokens = new address[](1);
 
         // 1. Notify the new rewards amount 20 tokens for the reward period
 
@@ -310,9 +310,9 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockIbToken1);
+        ibTokens[0] = address(mockIbToken1);
 
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -322,11 +322,11 @@ contract BlueberryStakingTest is Test {
 
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         // 3. Bob unstakes 5 bToken1
 
-        blueberryStaking.unstake(bTokens, stakeAmounts);
+        blueberryStaking.unstake(ibTokens, stakeAmounts);
 
         // 3.5 ensure that all tokens have been unstaked
 
@@ -334,14 +334,14 @@ contract BlueberryStakingTest is Test {
 
         // 3.6 ensure that bob can still start vesting
 
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
     }
     
     function testRewardAccumulation() public {
         // Temporary variables
         uint256[] memory rewardAmounts = new uint256[](2);
         uint256[] memory stakeAmounts = new uint256[](2);
-        address[] memory bTokens = new address[](2);
+        address[] memory ibTokens = new address[](2);
 
         uint256[] memory sallyRewardAmounts = new uint256[](1);
         uint256[] memory sallyStakeAmounts = new uint256[](1);
@@ -359,12 +359,11 @@ contract BlueberryStakingTest is Test {
         stakeAmounts[1] = 1e8 * 10;
         sallyStakeAmounts[0] = 1e8 * 10;
 
-        bTokens[0] = address(mockIbToken1);
-        bTokens[1] = address(mockIbToken2);
+        ibTokens[0] = address(mockIbToken1);
+        ibTokens[1] = address(mockIbToken2);
         sallybTokens[0] = address(mockIbToken1);
 
-        blueberryStaking.setIbTokenArray(bTokens);
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
 
         vm.stopPrank();
 
@@ -375,7 +374,7 @@ contract BlueberryStakingTest is Test {
         mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
         mockIbToken2.approve(address(blueberryStaking), stakeAmounts[1]);
 
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
 
         blueberryStaking.getAccumulatedRewards(owner);
 
