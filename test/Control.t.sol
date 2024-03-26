@@ -72,13 +72,6 @@ contract Control is Test {
         blb.mint(address(owner), 10_000_000e18);
     }
 
-    // Test setting the vesting length
-    function testSetVestLength() public {
-        vm.startPrank(owner);
-        blueberryStaking.setVestLength(69_420);
-        assertEq(blueberryStaking.vestLength(), 69_420);
-    }
-
     // Test setting the reward duration
     function testSetRewardDuration() public {
         vm.startPrank(owner);

@@ -157,7 +157,7 @@ contract BlueberryStaking is
         }
 
         if (_ibTokens.length == 0) {
-            revert InvalidIbToken();
+            revert InvalidLength();
         }
 
         for (uint256 i; i < _ibTokens.length; ++i) {
@@ -241,9 +241,9 @@ contract BlueberryStaking is
                 address(this),
                 _amount
             );
-        }
 
-        emit Staked(msg.sender, _ibTokens, _amounts, block.timestamp);
+            emit Staked(msg.sender, _ibToken, _amount);
+        }
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -268,9 +268,9 @@ contract BlueberryStaking is
             totalSupply[address(_ibToken)] -= _amount;
 
             IERC20(_ibToken).safeTransfer(msg.sender, _amount);
-        }
 
-        emit Unstaked(msg.sender, _ibTokens, _amounts, block.timestamp);
+            emit Unstaked(msg.sender, _ibToken, _amount);
+        }
     }
 
     /*//////////////////////////////////////////////////
@@ -326,7 +326,7 @@ contract BlueberryStaking is
 
         totalVestAmount += totalRewards;
 
-        emit Claimed(msg.sender, totalRewards, block.timestamp);
+        emit VestStarted(msg.sender, totalRewards);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -359,7 +359,7 @@ contract BlueberryStaking is
             blb.transfer(msg.sender, totalbdblb);
         }
 
-        emit VestingCompleted(msg.sender, totalbdblb, block.timestamp);
+        emit VestingCompleted(msg.sender, totalbdblb);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -437,13 +437,15 @@ contract BlueberryStaking is
                 treasury,
                 totalAccelerationFee
             );
+
+            emit FeeCollected(msg.sender, totalAccelerationFee);
         }
 
         if (totalbdblb > 0) {
             blb.transfer(msg.sender, totalbdblb);
         }
 
-        emit Accelerated(msg.sender, totalbdblb, totalRedistributedAmount);
+        emit VestingAccelerated(msg.sender, totalbdblb, totalRedistributedAmount);
     }
 
     /*//////////////////////////////////////////////////
@@ -674,7 +676,7 @@ contract BlueberryStaking is
 
             _setRewardRate(_ibToken, _amount, _rewardDuration);
 
-            emit IbTokenAdded(_ibToken, _amount, block.timestamp);
+            emit IbTokenAdded(_ibToken, _amount);
         }
 
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
@@ -706,7 +708,7 @@ contract BlueberryStaking is
             lastUpdateTime[_ibToken] = block.timestamp;
             finishAt[_ibToken] = block.timestamp + rewardDuration;
 
-            emit RewardAmountModified(_ibToken, _amount, block.timestamp);
+            emit RewardAmountModified(_ibToken, _amount);
         }
 
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
@@ -716,14 +718,7 @@ contract BlueberryStaking is
     function setRewardDuration(uint256 _rewardDuration) external onlyOwner {
         rewardDuration = _rewardDuration;
 
-        emit RewardDurationUpdated(_rewardDuration, block.timestamp);
-    }
-
-    /// @inheritdoc IBlueberryStaking
-    function setVestLength(uint256 _vestLength) external onlyOwner {
-        vestLength = _vestLength;
-
-        emit VestLengthUpdated(_vestLength, block.timestamp);
+        emit RewardDurationUpdated(_rewardDuration);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -733,7 +728,7 @@ contract BlueberryStaking is
         }
         basePenaltyRatioPercent = _ratio;
 
-        emit BasePenaltyRatioChanged(_ratio, block.timestamp);
+        emit BasePenaltyRatioUpdated(_ratio);
     }
 
     /**
@@ -749,7 +744,7 @@ contract BlueberryStaking is
 
         stableDecimals = decimals;
 
-        emit StableAssetUpdated(_stableAsset, decimals, block.timestamp);
+        emit StableAssetUpdated(_stableAsset, decimals);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -759,7 +754,7 @@ contract BlueberryStaking is
         }
         treasury = _treasury;
 
-        emit TreasuryUpdated(_treasury, block.timestamp);
+        emit TreasuryUpdated(_treasury);
     }
 
     /// @inheritdoc IBlueberryStaking

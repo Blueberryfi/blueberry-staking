@@ -16,90 +16,79 @@ interface IBlueberryStaking {
                          ERRORS
     //////////////////////////////////////////////////*/
 
-    error NotOwner();
-
+    /// @notice Emitted if a zero address is used.
     error AddressZero();
 
-    error InvalidStartTime();
-
-    error InvalidBalance();
-
-    error InvalidDuration();
-
-    error NothingToAccelerate();
-
-    error LockDropActive();
-
-    error LockDropInactive();
-
-    error NotKeeper();
-
-    error InvalidIndex();
-
-    error InvalidAmount();
-
-    error ZeroEmissionSchedules();
-
-    error TransferFailed();
-
-    error VestingNotCompleted();
-
+    /// @notice Emitted if a token is not an ibToken.
     error InvalidIbToken();
 
+    /// @notice Emitted if the length of arrays do not pass the requirements.
     error InvalidLength();
 
+    /// @notice Emitted if the calculated RewardRate is 0.
     error InvalidRewardRate();
 
+    /// @notice Emitted if the reward duration is 0.
     error InvalidRewardDuration();
 
+    /// @notice Emitted if the base penalty ratio is greater than 50%.
     error InvalidPenaltyRatio();
 
+    /// @notice Emitted if the observation time on the uniswap pool is greater than 432,000 seconds.
     error InvalidObservationTime();
 
+    /// @notice Emitted if a bToken being added already exists.
     error IBTokenAlreadyExists();
 
-    error AlreadyClaimed();
-
+    /// @notice Emitted if the user has no vesting schedules and is trying to accelerate or update one.
     error NothingToUpdate();
 
+    /// @notice Emitted if the user is trying to complete a vest that has finished vesting.
     error VestingIncomplete();
 
+    /// @notice Emitted if the user is trying to accelerate a vest before the 30 day lockdrop is complete.
     error LockdropIncomplete();
-
-    error IbTokenDoesNotExist();
-
-    error ArrayAlreadySet();
 
     /*//////////////////////////////////////////////////
                          EVENTS
     //////////////////////////////////////////////////*/
 
-    event Staked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
+    /// @notice Emitted when a user stakes their ibTokens.
+    event Staked(address indexed user, address ibToken, uint256 amount);
 
-    event Unstaked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
+    /// @notice Emitted when a user unstakes their ibTokens.
+    event Unstaked(address indexed user, address ibToken, uint256 amount);
 
-    event Claimed(address indexed user, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when a user starts vesting their rewards on their ibTokens.
+    event VestStarted(address indexed user, uint256 amount);
 
-    event IbTokenAdded(address indexed ibToken, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when the admin adds an ibToken that is eligible for rewards.
+    event IbTokenAdded(address indexed ibToken, uint256 amount);
 
-    event RewardAmountModified(address indexed ibToken, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when the admin updates the amount of rewards available for a reward period for a given ibToken.
+    event RewardAmountModified(address indexed ibToken, uint256 amount);
+    
+    /// @notice Emitted when a user accelerates their vesting schedule.
+    event VestingAccelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
 
-    event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
+    /// @notice Emitted when a user completes their vesting schedule.
+    event VestingCompleted(address indexed user, uint256 amount);
 
-    event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when the admin updates the BasePenaltyRatio.
+    event BasePenaltyRatioUpdated(uint256 basePenaltyRatio);
 
-    event BasePenaltyRatioChanged(uint256 basePenaltyRatio, uint256 timestamp);
+    /// @notice Emitted when the admin updates the global reward duration.
+    event RewardDurationUpdated(uint256 rewardDuration);
 
-    event RewardDurationUpdated(uint256 rewardDuration, uint256 timestamp);
+    /// @notice Emitted when the admin updates the treasury address.
+    event TreasuryUpdated(address treasury);
 
-    event TreasuryUpdated(address treasury, uint256 timestamp);
+    /// @notice Emitted when the admin updates the stable asset.
+    event StableAssetUpdated(address asset, uint256 decimals);
 
-    event StableAssetUpdated(address asset, uint256 decimals, uint256 timestamp);
-
-    event VestLengthUpdated(uint256 vestLength, uint256 timestamp);
-
-    event BLBUpdated(address blb, uint256 timestamp);
-
+    /// @notice Emitted when the treasury collects fees from the acceleration of vesting schedules.
+    event FeeCollected(address indexed user, uint256 amount);
+    
     /*//////////////////////////////////////////////////
                          STRUCTS
     //////////////////////////////////////////////////*/
@@ -245,13 +234,6 @@ interface IBlueberryStaking {
      * @param _rewardDuration The new reward duration in seconds
      */
     function setRewardDuration(uint256 _rewardDuration) external;
-
-    /**
-     * @notice Changes the vest length in seconds
-     * @dev Will effect all users who are vesting
-     * @param _vestLength The new vest length in seconds
-     */
-    function setVestLength(uint256 _vestLength) external;
 
     /**
      * @notice Changes the base penalty ratio in proportion to 1e18
