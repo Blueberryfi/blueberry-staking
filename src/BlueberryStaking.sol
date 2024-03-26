@@ -206,23 +206,6 @@ contract BlueberryStaking is
         deployedAt = block.timestamp;
     }
 
-    /// Contains the logic for updateReward function
-    function _updateReward(address _user, address _ibToken) internal {
-        if (!isIbToken[_ibToken]) {
-            revert InvalidIbToken();
-        }
-
-        rewardPerTokenStored[_ibToken] = rewardPerToken(_ibToken);
-        lastUpdateTime[_ibToken] = lastTimeRewardApplicable(_ibToken);
-
-        if (_user != address(0)) {
-            rewards[_user][_ibToken] = _earned(_user, _ibToken);
-            userRewardPerTokenPaid[_user][_ibToken] = rewardPerTokenStored[
-                _ibToken
-            ];
-        }
-    }
-
     /// @inheritdoc IBlueberryStaking
     function stake(
         address[] calldata _ibTokens,
@@ -466,59 +449,6 @@ contract BlueberryStaking is
                        VIEW FUNCTIONS
     //////////////////////////////////////////////////*/
 
-    /**
-     * @notice Fetches the TWAP price of BLB in terms of the stable asset
-     * @dev A default value of $0.04 is returned if the Uniswap V3 pool is not set
-     * @return The price of BLB in terms of the stable asset
-     */
-    function _fetchTWAP() internal view returns (uint256) {
-        UniswapV3PoolInfo memory _uniswapV3Info = uniswapV3Info;
-        IUniswapV3Pool _pool = IUniswapV3Pool(_uniswapV3Info.pool);
-        uint32 _observationPeriod = _uniswapV3Info.observationPeriod;
-
-        if (address(_pool) == address(0) || _observationPeriod == 0) {
-            return PERIOD_TWO_BLB_PRICE;
-        }
-
-        uint32[] memory _secondsArray = new uint32[](2);
-
-        _secondsArray[0] = _observationPeriod;
-        _secondsArray[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = _pool.observe(_secondsArray);
-
-        int56 _tickDifference = tickCumulatives[1] - tickCumulatives[0];
-        int56 _timeDifference = int32(_observationPeriod);
-
-        int24 _twapTick = int24(_tickDifference / _timeDifference);
-
-        uint160 _sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_twapTick);
-
-        // Decode the square root price
-        uint256 _priceX96 = FullMath.mulDiv(
-            _sqrtPriceX96,
-            _sqrtPriceX96,
-            FixedPoint96.Q96
-        );
-
-        uint256 _decimalsStable = stableDecimals;
-
-        // Adjust for decimals
-        if (BLB_DECIMALS > _decimalsStable) {
-            _priceX96 /= 10 ** (BLB_DECIMALS - _decimalsStable);
-        } else if (_decimalsStable > BLB_DECIMALS) {
-            _priceX96 *= 10 ** (_decimalsStable - BLB_DECIMALS);
-        }
-
-        // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
-        // To convert this to a human-readable format, you can divide by 2^96:
-
-        uint256 _price = _priceX96 / 2 ** 96;
-
-        // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
-        return _price;
-    }
-
     /// @inheritdoc IBlueberryStaking
     function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
@@ -674,11 +604,17 @@ contract BlueberryStaking is
                          MANAGEMENT
     //////////////////////////////////////////////////*/
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
+     *        reward period
+     * @dev If the reward duration is over, you must call `modifyRewardAmount` after adding the token.
+     * @param _ibTokens An array of the tokens to add
+     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
+     */
     function addIbTokens(
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
-    ) public onlyOwner {
+    ) external onlyOwner {
         _validateTokenAmountsArray(_ibTokens, _amounts);
 
         uint256 _totalRewardsAdded;
@@ -713,7 +649,15 @@ contract BlueberryStaking is
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Called by the owner to change the reward rate for a given token(s)
+     * @dev uses address(0) in updateRewards as to not change the reward rate for any user but still update each
+     * mappings
+     * @dev the caller should consider the reward rate for each token before calling this function and total rewards
+     * should be less than the total amount of tokens
+     * @param _ibTokens An array of the tokens to change the reward amounts for
+     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
+     */
     function modifyRewardAmount(
         address[] calldata _ibTokens,
         uint256[] calldata _amounts
@@ -746,14 +690,22 @@ contract BlueberryStaking is
         blb.transferFrom(msg.sender, address(this), _totalRewardsAdded);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Changes the reward duration in seconds
+     * @dev This will not change the reward rate for any tokens
+     * @param _rewardDuration The new reward duration in seconds
+     */
     function setRewardDuration(uint256 _rewardDuration) external onlyOwner {
         rewardDuration = _rewardDuration;
 
         emit RewardDurationUpdated(_rewardDuration);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Changes the base penalty ratio in proportion to 1e18
+     * @dev Will effect all users who are vesting
+     * @param _ratio The new base penalty ratio in wei
+     */
     function setBasePenaltyRatioPercent(uint256 _ratio) external onlyOwner {
         if (_ratio > 0.5e18) {
             revert InvalidPenaltyRatio();
@@ -779,7 +731,10 @@ contract BlueberryStaking is
         emit StableAssetUpdated(_stableAsset, decimals);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Sets the address of the treasury
+     * @param _treasury The new treasury address
+     */
     function setTreasury(address _treasury) external onlyOwner {
         if (_treasury == address(0)) {
             revert AddressZero();
@@ -789,7 +744,11 @@ contract BlueberryStaking is
         emit TreasuryUpdated(_treasury);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /**
+     * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
+     * @param _uniswapPool The new address of the uniswap pool
+     * @param _observationPeriod The new observation period for the uniswap pool
+     */
     function setUniswapV3Pool(
         address _uniswapPool,
         uint32 _observationPeriod
@@ -804,14 +763,88 @@ contract BlueberryStaking is
         uniswapV3Info = UniswapV3PoolInfo(_uniswapPool, _observationPeriod);
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /// @notice Pauses the contract
     function pause() external onlyOwner {
         _pause();
     }
 
-    /// @inheritdoc IBlueberryStaking
+    /// @notice Unpauses the contract
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    /*//////////////////////////////////////////////////
+                        INTERNAL
+    //////////////////////////////////////////////////*/
+
+    /// @dev Contains the logic for updateReward function
+    function _updateReward(address _user, address _ibToken) internal {
+        if (!isIbToken[_ibToken]) {
+            revert InvalidIbToken();
+        }
+
+        rewardPerTokenStored[_ibToken] = rewardPerToken(_ibToken);
+        lastUpdateTime[_ibToken] = lastTimeRewardApplicable(_ibToken);
+
+        if (_user != address(0)) {
+            rewards[_user][_ibToken] = _earned(_user, _ibToken);
+            userRewardPerTokenPaid[_user][_ibToken] = rewardPerTokenStored[
+                _ibToken
+            ];
+        }
+    }
+
+    /**
+     * @notice Fetches the TWAP price of BLB in terms of the stable asset
+     * @dev A default value of $0.04 is returned if the Uniswap V3 pool is not set
+     * @return The price of BLB in terms of the stable asset
+     */
+    function _fetchTWAP() internal view returns (uint256) {
+        UniswapV3PoolInfo memory _uniswapV3Info = uniswapV3Info;
+        IUniswapV3Pool _pool = IUniswapV3Pool(_uniswapV3Info.pool);
+        uint32 _observationPeriod = _uniswapV3Info.observationPeriod;
+
+        if (address(_pool) == address(0) || _observationPeriod == 0) {
+            return PERIOD_TWO_BLB_PRICE;
+        }
+
+        uint32[] memory _secondsArray = new uint32[](2);
+
+        _secondsArray[0] = _observationPeriod;
+        _secondsArray[1] = 0;
+
+        (int56[] memory tickCumulatives, ) = _pool.observe(_secondsArray);
+
+        int56 _tickDifference = tickCumulatives[1] - tickCumulatives[0];
+        int56 _timeDifference = int32(_observationPeriod);
+
+        int24 _twapTick = int24(_tickDifference / _timeDifference);
+
+        uint160 _sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_twapTick);
+
+        // Decode the square root price
+        uint256 _priceX96 = FullMath.mulDiv(
+            _sqrtPriceX96,
+            _sqrtPriceX96,
+            FixedPoint96.Q96
+        );
+
+        uint256 _decimalsStable = stableDecimals;
+
+        // Adjust for decimals
+        if (BLB_DECIMALS > _decimalsStable) {
+            _priceX96 /= 10 ** (BLB_DECIMALS - _decimalsStable);
+        } else if (_decimalsStable > BLB_DECIMALS) {
+            _priceX96 *= 10 ** (_decimalsStable - BLB_DECIMALS);
+        }
+
+        // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
+        // To convert this to a human-readable format, you can divide by 2^96:
+
+        uint256 _price = _priceX96 / 2 ** 96;
+
+        // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
+        return _price;
     }
 
     /**

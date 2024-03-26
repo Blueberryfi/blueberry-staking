@@ -241,75 +241,9 @@ interface IBlueberryStaking {
     ) external view returns (uint256 accelerationFee);
 
     /**
-     * @notice Called by the owner to change the reward rate for a given token(s)
-     * @dev uses address(0) in updateRewards as to not change the reward rate for any user but still update each
-     * mappings
-     * @dev the caller should consider the reward rate for each token before calling this function and total rewards
-     * should be less than the total amount of tokens
-     * @param _ibTokens An array of the tokens to change the reward amounts for
-     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
-     */
-    function modifyRewardAmount(
-        address[] calldata _ibTokens,
-        uint256[] calldata _amounts
-    ) external;
-
-    /**
-     * @notice Changes the reward duration in seconds
-     * @dev This will not change the reward rate for any tokens
-     * @param _rewardDuration The new reward duration in seconds
-     */
-    function setRewardDuration(uint256 _rewardDuration) external;
-
-    /**
-     * @notice Changes the base penalty ratio in proportion to 1e18
-     * @dev Will effect all users who are vesting
-     * @param _ratio The new base penalty ratio in wei
-     */
-    function setBasePenaltyRatioPercent(uint256 _ratio) external;
-
-    /**
-     * @notice Sets the address of the treasury
-     * @param _treasury The new treasury address
-     */
-    function setTreasury(address _treasury) external;
-
-    /**
-     * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
-     *        reward period
-     * @dev If the reward duration is over, you must call `modifyRewardAmount` after adding the token.
-     * @param _ibTokens An array of the tokens to add
-     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
-     */
-    function addIbTokens(
-        address[] calldata _ibTokens,
-        uint256[] calldata _amounts
-    ) external;
-
-    /**
-     * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
-     * @param _uniswapPool The new address of the uniswap pool
-     * @param _observationPeriod The new observation period for the uniswap pool
-     */
-    function setUniswapV3Pool(
-        address _uniswapPool,
-        uint32 _observationPeriod
-    ) external;
-
-    /**
      * @notice Fetches the total accumulated rewards for a given user
      * @param _user The user's address to check for accumulated bdBLB rewards
      * @return The total accumulated rewards for the user in terms of bdBLB (18 decimals)
      */
     function getAccumulatedRewards(address _user) external returns (uint256);
-
-    /**
-     * @notice Pauses the contract
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpauses the contract
-     */
-    function unpause() external;
 }
