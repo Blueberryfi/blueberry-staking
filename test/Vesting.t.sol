@@ -5,22 +5,22 @@ import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {BlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
-import {MockbToken} from "./mocks/MockbToken.sol";
+import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract BlueberryStakingTest is Test {
     BlueberryStaking public blueberryStaking;
     BlueberryToken public blb;
-    IERC20 public mockbToken1;
-    IERC20 public mockbToken2;
-    IERC20 public mockbToken3;
+    IERC20 public mockIbToken1;
+    IERC20 public mockIbToken2;
+    IERC20 public mockIbToken3;
 
     IERC20 public mockUSDC;
 
     address public treasury = makeAddr("treasury");
 
-    address[] public existingBTokens;
+    address[] public existingIbTokens;
 
     address public bob = makeAddr("bob");
     address public sally = makeAddr("sally");
@@ -36,26 +36,26 @@ contract BlueberryStakingTest is Test {
 
     uint256[] public rewardAmounts = new uint256[](1);
     uint256[] public stakeAmounts = new uint256[](1);
-    address[] public bTokens = new address[](1);
+    address[] public ibTokens = new address[](1);
 
     function setUp() public {
         // 0. Deploy the contracts
 
         vm.startPrank(owner);
 
-        mockbToken1 = new MockbToken();
-        mockbToken2 = new MockbToken();
-        mockbToken3 = new MockbToken();
+        mockIbToken1 = new MockIbToken();
+        mockIbToken2 = new MockIbToken();
+        mockIbToken3 = new MockIbToken();
 
         mockUSDC = new MockUSDC();
 
         blb = new BlueberryToken(owner, owner, block.timestamp);
 
-        existingBTokens = new address[](3);
+        existingIbTokens = new address[](3);
 
-        existingBTokens[0] = address(mockbToken1);
-        existingBTokens[1] = address(mockbToken2);
-        existingBTokens[2] = address(mockbToken3);
+        existingIbTokens[0] = address(mockIbToken1);
+        existingIbTokens[1] = address(mockIbToken2);
+        existingIbTokens[2] = address(mockIbToken3);
 
         blueberryStaking = new BlueberryStaking();
 
@@ -69,7 +69,8 @@ contract BlueberryStakingTest is Test {
                     address(mockUSDC),
                     address(treasury),
                     1_209_600,
-                    existingBTokens,
+                    0.25e18,
+                    existingIbTokens,
                     owner
                 )
             )
@@ -79,21 +80,21 @@ contract BlueberryStakingTest is Test {
         
         blb.mint(address(owner), 1e20);
 
-        mockbToken1.transfer(bob, 1e18 * 200);
-        mockbToken2.transfer(bob, 1e18 * 200);
-        mockbToken3.transfer(bob, 1e18 * 200);
+        mockIbToken1.transfer(bob, 1e18 * 200);
+        mockIbToken2.transfer(bob, 1e18 * 200);
+        mockIbToken3.transfer(bob, 1e18 * 200);
 
-        mockbToken1.transfer(sally, 1e18 * 200);
-        mockbToken2.transfer(sally, 1e18 * 200);
-        mockbToken3.transfer(sally, 1e18 * 200);
+        mockIbToken1.transfer(sally, 1e18 * 200);
+        mockIbToken2.transfer(sally, 1e18 * 200);
+        mockIbToken3.transfer(sally, 1e18 * 200);
 
-        mockbToken1.transfer(dan, 1e18 * 200);
-        mockbToken2.transfer(dan, 1e18 * 200);
-        mockbToken3.transfer(dan, 1e18 * 200);
+        mockIbToken1.transfer(dan, 1e18 * 200);
+        mockIbToken2.transfer(dan, 1e18 * 200);
+        mockIbToken3.transfer(dan, 1e18 * 200);
 
-        mockbToken1.transfer(alice, 1e18 * 200);
-        mockbToken2.transfer(alice, 1e18 * 200);
-        mockbToken3.transfer(alice, 1e18 * 200);
+        mockIbToken1.transfer(alice, 1e18 * 200);
+        mockIbToken2.transfer(alice, 1e18 * 200);
+        mockIbToken3.transfer(alice, 1e18 * 200);
 
         mockUSDC.transfer(bob, 1e10);
         mockUSDC.transfer(sally, 1e10);
@@ -110,33 +111,33 @@ contract BlueberryStakingTest is Test {
 
         stakeAmounts[0] = 1e18 * 5;
 
-        bTokens[0] = existingBTokens[0];
+        ibTokens[0] = existingIbTokens[0];
 
         blb.approve(address(blueberryStaking), UINT256_MAX);
-        blueberryStaking.modifyRewardAmount(bTokens, rewardAmounts);
+        blueberryStaking.modifyRewardAmount(ibTokens, rewardAmounts);
 
         vm.stopPrank();
 
         // 2. bob, sally, dan, and alice each stake 10 of each bToken
 
         vm.startPrank(bob);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(sally);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(dan);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        mockbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
-        blueberryStaking.stake(bTokens, stakeAmounts);
+        mockIbToken1.approve(address(blueberryStaking), stakeAmounts[0]);
+        blueberryStaking.stake(ibTokens, stakeAmounts);
         vm.stopPrank();
 
         console.log("BLB balance before: %s", blb.balanceOf(address(this)));
@@ -147,7 +148,7 @@ contract BlueberryStakingTest is Test {
 
         // 3. bob starts vesting after 14 days of rewards accrual
         skip(14 days);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
 
         // 4. 1/2 a year has now passed, bob decides to accelerate his vesting
 
@@ -186,7 +187,7 @@ contract BlueberryStakingTest is Test {
         // 3. bob starts vesting after 14 days of rewards accrual
         skip(14 days);
         vm.prank(bob);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
 
         // To start, the penalty is 25%. After 364 days (52 weeks), the penalty will be 0%.
 
@@ -221,7 +222,7 @@ contract BlueberryStakingTest is Test {
 
         // 3. bob starts vesting after 14 days of rewards accrual
         skip(14 days);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
         // Wait 30 days to guarantee lockdrop completes.
@@ -246,7 +247,7 @@ contract BlueberryStakingTest is Test {
         vm.startPrank(sally);
 
         // Sally now starts vesting.
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
         // Wait 52 weeks to enable Sally to complete her vesting.
@@ -276,7 +277,7 @@ contract BlueberryStakingTest is Test {
         skip(30 days + 1);
 
         // Bob starts vesting.
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
 
         // Bob immediately accelerates, paying the full early unlock penalty and acceleration fee.
@@ -298,7 +299,7 @@ contract BlueberryStakingTest is Test {
         vm.startPrank(sally);
 
         // Sally now starts vesting.
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
 
         // Wait 52 weeks to enable Sally to complete her vesting.
@@ -327,13 +328,13 @@ contract BlueberryStakingTest is Test {
 
         // Bob starts vesting.
         vm.startPrank(bob);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 bobVestAmount, , , ) = blueberryStaking.vesting(bob, 0);
         vm.stopPrank();
 
         // Sally also starts vesting at the same time.
         vm.startPrank(sally);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 sallyVestAmount, , , ) = blueberryStaking.vesting(sally, 0);
         vm.stopPrank();
 
@@ -355,13 +356,13 @@ contract BlueberryStakingTest is Test {
 
         // Dan starts his vesting.
         vm.startPrank(dan);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 danVestAmount, , , ) = blueberryStaking.vesting(dan, 0);
         vm.stopPrank();
 
         // Alice also starts her vesting.
         vm.startPrank(alice);
-        blueberryStaking.startVesting(bTokens);
+        blueberryStaking.startVesting(ibTokens);
         (uint256 aliceVestAmount, , , ) = blueberryStaking.vesting(alice, 0);
         vm.stopPrank();
 

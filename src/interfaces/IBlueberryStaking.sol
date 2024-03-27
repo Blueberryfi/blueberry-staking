@@ -16,91 +16,82 @@ interface IBlueberryStaking {
                          ERRORS
     //////////////////////////////////////////////////*/
 
-    error NotOwner();
-
+    /// @notice Emitted if a zero address is used.
     error AddressZero();
 
-    error InvalidStartTime();
-
-    error InvalidBalance();
-
-    error InvalidDuration();
-
-    error NothingToAccelerate();
-
-    error LockDropActive();
-
-    error LockDropInactive();
-
-    error NotKeeper();
-
-    error InvalidIndex();
-
-    error InvalidAmount();
-
-    error InvalidbToken();
-
-    error ZeroEmissionSchedules();
-
-    error TransferFailed();
-
-    error VestingNotCompleted();
-
+    /// @notice Emitted if a token is not an ibToken.
     error InvalidIbToken();
 
+    /// @notice Emitted if the length of arrays do not pass the requirements.
     error InvalidLength();
 
+    /// @notice Emitted if the calculated RewardRate is 0.
     error InvalidRewardRate();
 
+    /// @notice Emitted if the reward duration is 0.
     error InvalidRewardDuration();
 
+    /// @notice Emitted if the base penalty ratio is greater than 50%.
     error InvalidPenaltyRatio();
 
+    /// @notice Emitted if the observation time on the uniswap pool is greater than 432,000 seconds.
     error InvalidObservationTime();
 
-    error BTokenAlreadyExists();
+    /// @notice Emitted if a bToken being added already exists.
+    error IBTokenAlreadyExists();
 
-    error AlreadyClaimed();
-
+    /// @notice Emitted if the user has no vesting schedules and is trying to accelerate or update one.
     error NothingToUpdate();
 
+    /// @notice Emitted if the user is trying to complete a vest that has finished vesting.
     error VestingIncomplete();
 
+    /// @notice Emitted if the user is trying to accelerate a vest before the 30 day lockdrop is complete.
     error LockdropIncomplete();
-
-    error IbTokenDoesNotExist();
-
-    error ArrayAlreadySet();
 
     /*//////////////////////////////////////////////////
                          EVENTS
     //////////////////////////////////////////////////*/
 
-    event Staked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
+    /// @notice Emitted when a user stakes their ibTokens.
+    event Staked(address indexed user, address ibToken, uint256 amount);
 
-    event Unstaked(address indexed user, address[] ibTokens, uint256[] amounts, uint256 timestamp);
+    /// @notice Emitted when a user unstakes their ibTokens.
+    event Unstaked(address indexed user, address ibToken, uint256 amount);
 
-    event Claimed(address indexed user, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when a user starts vesting their rewards on their ibTokens.
+    event VestStarted(address indexed user, uint256 amount);
 
-    event IbTokenAdded(address indexed ibToken, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when the admin adds an ibToken that is eligible for rewards.
+    event IbTokenAdded(address indexed ibToken, uint256 amount);
 
-    event RewardAmountModified(address indexed ibToken, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when the admin updates the amount of rewards available for a reward period for a given ibToken.
+    event RewardAmountModified(address indexed ibToken, uint256 amount);
 
-    event Accelerated(address indexed user, uint256 tokensClaimed, uint256 redistributedBLB);
+    /// @notice Emitted when a user accelerates their vesting schedule.
+    event VestingAccelerated(
+        address indexed user,
+        uint256 tokensClaimed,
+        uint256 redistributedBLB
+    );
 
-    event VestingCompleted(address indexed user, uint256 amount, uint256 timestamp);
+    /// @notice Emitted when a user completes their vesting schedule.
+    event VestingCompleted(address indexed user, uint256 amount);
 
-    event BasePenaltyRatioChanged(uint256 basePenaltyRatio, uint256 timestamp);
+    /// @notice Emitted when the admin updates the BasePenaltyRatio.
+    event BasePenaltyRatioUpdated(uint256 basePenaltyRatio);
 
-    event RewardDurationUpdated(uint256 rewardDuration, uint256 timestamp);
+    /// @notice Emitted when the admin updates the global reward duration.
+    event RewardDurationUpdated(uint256 rewardDuration);
 
-    event TreasuryUpdated(address treasury, uint256 timestamp);
+    /// @notice Emitted when the admin updates the treasury address.
+    event TreasuryUpdated(address treasury);
 
-    event StableAssetUpdated(address asset, uint256 decimals, uint256 timestamp);
+    /// @notice Emitted when the admin updates the stable asset.
+    event StableAssetUpdated(address asset, uint256 decimals);
 
-    event VestLengthUpdated(uint256 vestLength, uint256 timestamp);
-
-    event BLBUpdated(address blb, uint256 timestamp);
+    /// @notice Emitted when the treasury collects fees from the acceleration of vesting schedules.
+    event FeeCollected(address indexed user, uint256 amount);
 
     /*//////////////////////////////////////////////////
                          STRUCTS
@@ -120,6 +111,17 @@ interface IBlueberryStaking {
         uint256 priceUnderlying;
     }
 
+    /**
+     * @notice Struct to store data related to the Uniswap V3 pool
+     * @dev This is used to fetch the price of BLB in the stable asset
+     * @param pool The address of the Uniswap V3 pool
+     * @param observationPeriod The observation period for the Uniswap V3 pool
+     */
+    struct UniswapV3PoolInfo {
+        address pool;
+        uint32 observationPeriod;
+    }
+
     /*//////////////////////////////////////////////////
                          FUNCTIONS
     //////////////////////////////////////////////////*/
@@ -130,7 +132,10 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to stake
      * @param _amounts An array of the amounts of each token to stake
      */
-    function stake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function stake(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice unstakes a given amount of each token
@@ -138,7 +143,10 @@ interface IBlueberryStaking {
      * @param _ibTokens An array of the tokens to unstake
      * @param _amounts An array of the amounts of each token to unstake
      */
-    function unstake(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
+    function unstake(
+        address[] calldata _ibTokens,
+        uint256[] calldata _amounts
+    ) external;
 
     /**
      * @notice starts the vesting process for a given array of tokens
@@ -172,14 +180,8 @@ interface IBlueberryStaking {
     //////////////////////////////////////////////////*/
 
     /**
-     * @notice gets the TWAP price for BLB in StableAsset
-     * @param _secondsInPast The amount of seconds in the past to get the TWAP for
-     * @return The TWAP price
-     */
-    function fetchTWAP(uint32 _secondsInPast) external view returns (uint256);
-
-    /**
      * @notice gets the current price for BLB in StableAsset
+     * @dev Uses the Uniswap V3 TWAP pricing method after the 30 day lockdrop period in complete
      * @return _price The current price scaled to an 18 decimal fixed point number
      */
     function getPrice() external view returns (uint256 _price);
@@ -187,7 +189,10 @@ interface IBlueberryStaking {
     /**
      * @return returns true if the vesting schedule is complete for the given user and vesting index
      */
-    function isVestingComplete(address _user, uint256 _vestIndex) external view returns (bool);
+    function isVestingComplete(
+        address _user,
+        uint256 _vestIndex
+    ) external view returns (bool);
 
     /**
      * @return returns the total amount of rewards for the given ibToken
@@ -197,12 +202,17 @@ interface IBlueberryStaking {
     /**
      * @return earnedAmount the amount of rewards the given user has earned for the given ibToken
      */
-    function earned(address _account, address _ibToken) external view returns (uint256 earnedAmount);
+    function earned(
+        address _account,
+        address _ibToken
+    ) external view returns (uint256 earnedAmount);
 
     /**
      * @return the timestamp of the last time rewards were updated
      */
-    function lastTimeRewardApplicable(address ibToken) external view returns (uint256);
+    function lastTimeRewardApplicable(
+        address ibToken
+    ) external view returns (uint256);
 
     /**
      * @dev Gets the current unlock penalty ratio, which linearly decreases from 70% to 0% over the vesting period.
@@ -212,10 +222,10 @@ interface IBlueberryStaking {
      * @param _vestingScheduleIndex The index of the vesting schedule.
      * @return penaltyRatio The current unlock penalty ratio in wei.
      */
-    function getEarlyUnlockPenaltyRatio(address _user, uint256 _vestingScheduleIndex)
-        external
-        view
-        returns (uint256 penaltyRatio);
+    function getEarlyUnlockPenaltyRatio(
+        address _user,
+        uint256 _vestingScheduleIndex
+    ) external view returns (uint256 penaltyRatio);
 
     /**
      * @dev Gets the current acceleration fee ratio, which linearly decreases over the vesting period.
@@ -225,93 +235,15 @@ interface IBlueberryStaking {
      * @param _vestingScheduleIndex The index of the vesting schedule.
      * @return accelerationFee The current acceleration fee ratio.
      */
-    function getAccelerationFeeStableAsset(address _user, uint256 _vestingScheduleIndex)
-        external
-        view
-        returns (uint256 accelerationFee);
+    function getAccelerationFeeStableAsset(
+        address _user,
+        uint256 _vestingScheduleIndex
+    ) external view returns (uint256 accelerationFee);
 
     /**
-     * @notice Called by the owner to change the reward rate for a given token(s)
-     * @dev uses address(0) in updateRewards as to not change the reward rate for any user but still update each
-     * mappings
-     * @dev the caller should consider the reward rate for each token before calling this function and total rewards
-     * should be less than the total amount of tokens
-     * @param _ibTokens An array of the tokens to change the reward amounts for
-     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
-     */
-    function modifyRewardAmount(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
-
-    /**
-     * @notice Changes the reward duration in seconds
-     * @dev This will not change the reward rate for any tokens
-     * @param _rewardDuration The new reward duration in seconds
-     */
-    function setRewardDuration(uint256 _rewardDuration) external;
-
-    /**
-     * @notice Changes the vest length in seconds
-     * @dev Will effect all users who are vesting
-     * @param _vestLength The new vest length in seconds
-     */
-    function setVestLength(uint256 _vestLength) external;
-
-    /**
-     * @notice Changes the base penalty ratio in proportion to 1e18
-     * @dev Will effect all users who are vesting
-     * @param _ratio The new base penalty ratio in wei
-     */
-    function setBasePenaltyRatioPercent(uint256 _ratio) external;
-
-    /**
-     * @notice Changes the address of the treasury
-     * @param _treasury The new treasury address
-     */
-    function changeTreasuryAddress(address _treasury) external;
-
-    /**
-     * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
-     *        reward period
-     * @dev If the reward duration is over, you must call `modifyRewardAmount` after adding the token.
-     * @param _ibTokens An array of the tokens to add
-     * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
-     */
-    function addIbTokens(address[] calldata _ibTokens, uint256[] calldata _amounts) external;
-
-    /**
-     * @notice Change the blb token address (in case of migration)
-     */
-    function changeBLB(address _blb) external;
-
-    /**
-     * @notice Changes the information for the uniswap pool to fetch the price of BLB
-     * @param _uniswapPool The new address of the uniswap pool
-     * @param _uniswapFactory The new address of the uniswap factory
-     * @param _observationPeriod The new observation period for the uniswap pool
-     */
-    function changeUniswapInformation(address _uniswapPool, address _uniswapFactory, uint32 _observationPeriod)
-        external;
-
-    /**
-     * @notice Sets the initial ibTokens array
-     * @dev This function can only be called once by the owner
-     * @param _ibTokens Set the ibTokens array
-     */
-    function setIbTokenArray(address[] calldata _ibTokens) external;
-
-    /**
-     * @notice Fetches the total accumulated rewards for a given user 
+     * @notice Fetches the total accumulated rewards for a given user
      * @param _user The user's address to check for accumulated bdBLB rewards
      * @return The total accumulated rewards for the user in terms of bdBLB (18 decimals)
      */
     function getAccumulatedRewards(address _user) external returns (uint256);
-
-    /**
-     * @notice Pauses the contract
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpauses the contract
-     */
-    function unpause() external;
 }
