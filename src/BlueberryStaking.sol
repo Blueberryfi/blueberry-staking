@@ -392,7 +392,6 @@ contract BlueberryStaking is
                 revert("Vest complete, nothing to accelerate");
             }
 
-            // calculate acceleration fee and log it to ensure eth value is sent
             uint256 _accelerationFee = getAccelerationFeeStableAsset(
                 msg.sender,
                 _vestIndex
@@ -607,7 +606,6 @@ contract BlueberryStaking is
     /**
      * @notice Adds the given tokens to the list of ibTokens and sets the reward amounts for each token in the current
      *        reward period
-     * @dev If the reward duration is over, you must call `modifyRewardAmount` after adding the token.
      * @param _ibTokens An array of the tokens to add
      * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
@@ -653,8 +651,6 @@ contract BlueberryStaking is
      * @notice Called by the owner to change the reward rate for a given token(s)
      * @dev uses address(0) in updateRewards as to not change the reward rate for any user but still update each
      * mappings
-     * @dev the caller should consider the reward rate for each token before calling this function and total rewards
-     * should be less than the total amount of tokens
      * @param _ibTokens An array of the tokens to change the reward amounts for
      * @param _amounts An array of the amounts to change the reward amounts to- e.g 1e18 = 1 token per rewardDuration
      */
