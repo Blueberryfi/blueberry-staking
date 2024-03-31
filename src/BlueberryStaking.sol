@@ -715,7 +715,7 @@ contract BlueberryStaking is
      * @notice Sets the  stable asset to an alternative in the event of a depeg
      * @param _stableAsset The new stable asset address
      */
-    function setStableAsset(address _stableAsset) external onlyOwner {
+    function setStableAsset(address _stableAsset) external whenPaused onlyOwner {
         if (_stableAsset == address(0)) {
             revert AddressZero();
         }
@@ -748,7 +748,7 @@ contract BlueberryStaking is
     function setUniswapV3Pool(
         address _uniswapPool,
         uint32 _observationPeriod
-    ) external onlyOwner {
+    ) external whenPaused onlyOwner {
         if (_uniswapPool == address(0)) {
             revert AddressZero();
         }
