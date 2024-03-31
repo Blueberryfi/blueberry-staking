@@ -120,7 +120,7 @@ contract BlueberryStaking is
     /// @notice The price of BLB during the 1st period of the lockdrop
     uint256 private constant PERIOD_ONE_BLB_PRICE = 0.02e18;
 
-    /// @notice The price of BLB during the 1st period of the lockdrop
+    /// @notice The price of BLB during the 2nd period of the lockdrop
     uint256 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
 
     /*//////////////////////////////////////////////////
