@@ -105,10 +105,10 @@ interface IBlueberryStaking {
      * @param priceUnderlying The underlying token Price
      */
     struct Vest {
-        uint256 amount;
-        uint256 extra;
-        uint256 startTime;
-        uint256 priceUnderlying;
+        uint128 amount;
+        uint128 extra;
+        uint128 startTime;
+        uint128 priceUnderlying;
     }
 
     /**
@@ -184,7 +184,7 @@ interface IBlueberryStaking {
      * @dev Uses the Uniswap V3 TWAP pricing method after the 30 day lockdrop period in complete
      * @return _price The current price scaled to an 18 decimal fixed point number
      */
-    function getPrice() external view returns (uint256 _price);
+    function getPrice() external view returns (uint128 _price);
 
     /**
      * @return returns true if the vesting schedule is complete for the given user and vesting index
