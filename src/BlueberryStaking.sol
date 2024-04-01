@@ -347,7 +347,7 @@ contract BlueberryStaking is
 
             delete vests[_vestIndexes[i]];
         
-            emit VestingCompleted(msg.sender, i, amountToDistribute);
+            emit VestingCompleted(msg.sender, _vestIndexes[i], amountToDistribute);
         }
 
         if (totalbdblb > 0) {
