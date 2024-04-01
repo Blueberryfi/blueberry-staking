@@ -312,12 +312,12 @@ contract BlueberryStaking is
                 vesting[msg.sender].push(
                     Vest(reward, 0, block.timestamp, _priceUnderlying)
                 );
+
+                emit VestStarted(msg.sender, address(_ibToken), reward);
             }
         }
 
         totalVestAmount += totalRewards;
-
-        emit VestStarted(msg.sender, totalRewards);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -338,20 +338,21 @@ contract BlueberryStaking is
                 revert VestingIncomplete();
             }
 
-            totalbdblb += v.amount + v.extra;
+            uint256 amountToDistribute = v.amount + v.extra;
+            totalbdblb += amountToDistribute;
 
             // Ensure accurate redistribution accounting for accelerations.
             totalVestAmount -= v.amount;
             redistributedBLB -= v.extra;
 
             delete vests[_vestIndexes[i]];
+        
+            emit VestingCompleted(msg.sender, i, amountToDistribute);
         }
 
         if (totalbdblb > 0) {
             blb.transfer(msg.sender, totalbdblb);
         }
-
-        emit VestingCompleted(msg.sender, totalbdblb);
     }
 
     /// @inheritdoc IBlueberryStaking
@@ -420,6 +421,13 @@ contract BlueberryStaking is
 
             // delete the vest
             delete vests[_vestIndex];
+
+            emit VestingAccelerated(
+                msg.sender,
+                _vestIndex,
+                _vestTotal,
+                _redistributionAmount
+            );
         }
 
         if (totalAccelerationFee > 0) {
@@ -436,12 +444,6 @@ contract BlueberryStaking is
         if (totalbdblb > 0) {
             blb.transfer(msg.sender, totalbdblb);
         }
-
-        emit VestingAccelerated(
-            msg.sender,
-            totalbdblb,
-            totalRedistributedAmount
-        );
     }
 
     /*//////////////////////////////////////////////////
