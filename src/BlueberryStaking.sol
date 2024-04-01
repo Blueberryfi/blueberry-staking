@@ -326,9 +326,6 @@ contract BlueberryStaking is
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         Vest[] storage vests = vesting[msg.sender];
         uint256 vestIndexLength = vests.length;
-        if (vesting[msg.sender].length < vestIndexLength) {
-            revert InvalidLength();
-        }
 
         uint256 totalbdblb;
         for (uint256 i; i < vestIndexLength; ++i) {
@@ -360,9 +357,6 @@ contract BlueberryStaking is
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         // index must exist
         uint256 vestIndexLength = _vestIndexes.length;
-        if (vesting[msg.sender].length < vestIndexLength) {
-            revert InvalidLength();
-        }
 
         // lockdrop period must be complete i.e 1 month
         if (block.timestamp <= deployedAt + LOCKDROP_DURATION) {
