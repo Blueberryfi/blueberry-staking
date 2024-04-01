@@ -177,7 +177,8 @@ contract BlueberryStaking is
         if (
             _blb == address(0) ||
             _stableAsset == address(0) ||
-            _treasury == address(0)
+            _treasury == address(0) ||
+            _admin == address(0)
         ) {
             revert AddressZero();
         }
