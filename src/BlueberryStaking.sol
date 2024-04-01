@@ -325,7 +325,8 @@ contract BlueberryStaking is
         uint256[] calldata _vestIndexes
     ) external whenNotPaused updateVests(msg.sender, _vestIndexes) {
         Vest[] storage vests = vesting[msg.sender];
-        uint256 vestIndexLength = vests.length;
+        // index must exist
+        uint256 vestIndexLength = _vestIndexes.length;
 
         uint256 totalbdblb;
         for (uint256 i; i < vestIndexLength; ++i) {
