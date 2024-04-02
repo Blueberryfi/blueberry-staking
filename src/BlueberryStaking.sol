@@ -283,6 +283,7 @@ contract BlueberryStaking is
 
             if (redistributedBLB > 0) {
                 vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
+                vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
             }
         }
 
@@ -293,7 +294,7 @@ contract BlueberryStaking is
     function startVesting(
         address[] calldata _ibTokens
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        uint256 totalRewards;
+        uint128 totalRewards;
 
         uint256 _ibTokensLength = _ibTokens.length;
         for (uint256 i; i < _ibTokensLength; ++i) {
@@ -317,6 +318,10 @@ contract BlueberryStaking is
         }
 
         totalVestAmount += totalRewards;
+
+        vesting[msg.sender].push(
+            Vest(totalRewards, 0, uint128(block.timestamp), getPrice())
+        );
 
         emit VestStarted(msg.sender, totalRewards);
     }
@@ -450,7 +455,7 @@ contract BlueberryStaking is
     //////////////////////////////////////////////////*/
 
     /// @inheritdoc IBlueberryStaking
-    function getPrice() public view returns (uint128 _price) {
+    function getPrice() public view returns (uint256 _price) {
         // during the lockdrop period the underlying blb token price is locked
         uint256 _period = (block.timestamp - deployedAt) /
             (LOCKDROP_DURATION / 2);
@@ -581,7 +586,7 @@ contract BlueberryStaking is
         );
 
         accelerationFee =
-            ((((_vest.priceUnderlying * _vestTotal) / 1e18) *
+            ((((_vest.priceInUnderlying * _vestTotal) / 1e18) *
                 _earlyUnlockPenaltyRatio) / 1e18) /
             (10 ** (18 - stableDecimals));
     }
