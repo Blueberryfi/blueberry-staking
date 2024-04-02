@@ -283,7 +283,6 @@ contract BlueberryStaking is
 
             if (redistributedBLB > 0) {
                 vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
-                vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
             }
         }
 
@@ -308,12 +307,6 @@ contract BlueberryStaking is
             if (reward > 0) {
                 totalRewards += reward;
                 rewards[msg.sender][address(_ibToken)] = 0;
-
-                uint128 _priceUnderlying = getPrice();
-
-                vesting[msg.sender].push(
-                    Vest(reward, 0, uint128(block.timestamp), _priceUnderlying)
-                );
             }
         }
 
@@ -455,7 +448,7 @@ contract BlueberryStaking is
     //////////////////////////////////////////////////*/
 
     /// @inheritdoc IBlueberryStaking
-    function getPrice() public view returns (uint256 _price) {
+    function getPrice() public view returns (uint128 _price) {
         // during the lockdrop period the underlying blb token price is locked
         uint256 _period = (block.timestamp - deployedAt) /
             (LOCKDROP_DURATION / 2);
