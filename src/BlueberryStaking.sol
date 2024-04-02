@@ -293,7 +293,7 @@ contract BlueberryStaking is
     function startVesting(
         address[] calldata _ibTokens
     ) external whenNotPaused updateRewards(msg.sender, _ibTokens) {
-        uint256 totalRewards;
+        uint128 totalRewards;
 
         uint256 _ibTokensLength = _ibTokens.length;
         for (uint256 i; i < _ibTokensLength; ++i) {
@@ -307,16 +307,14 @@ contract BlueberryStaking is
             if (reward > 0) {
                 totalRewards += reward;
                 rewards[msg.sender][address(_ibToken)] = 0;
-
-                uint128 _priceUnderlying = getPrice();
-
-                vesting[msg.sender].push(
-                    Vest(reward, 0, uint128(block.timestamp), _priceUnderlying)
-                );
             }
         }
 
         totalVestAmount += totalRewards;
+
+        vesting[msg.sender].push(
+            Vest(totalRewards, 0, uint128(block.timestamp), getPrice())
+        );
 
         emit VestStarted(msg.sender, totalRewards);
     }
@@ -581,7 +579,7 @@ contract BlueberryStaking is
         );
 
         accelerationFee =
-            ((((_vest.priceUnderlying * _vestTotal) / 1e18) *
+            ((((_vest.priceInUnderlying * _vestTotal) / 1e18) *
                 _earlyUnlockPenaltyRatio) / 1e18) /
             (10 ** (18 - stableDecimals));
     }

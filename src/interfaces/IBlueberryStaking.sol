@@ -102,13 +102,13 @@ interface IBlueberryStaking {
      * @param amount The amount of tokens vested
      * @param extra The extra amount of tokens to be redistributed to this vesting schedule
      * @param startTime The start time of the vesting schedule
-     * @param priceUnderlying The underlying token Price
+     * @param priceInUnderlying The price of BLB in the stable asset at the time of vesting
      */
     struct Vest {
         uint128 amount;
         uint128 extra;
         uint128 startTime;
-        uint128 priceUnderlying;
+        uint128 priceInUnderlying;
     }
 
     /**
