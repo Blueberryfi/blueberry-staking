@@ -60,7 +60,7 @@ interface IBlueberryStaking {
     event Unstaked(address indexed user, address ibToken, uint256 amount);
 
     /// @notice Emitted when a user starts vesting their rewards on their ibTokens.
-    event VestStarted(address indexed user, uint256 amount);
+    event VestStarted(address indexed user, address ibToken, uint256 amount);
 
     /// @notice Emitted when the admin adds an ibToken that is eligible for rewards.
     event IbTokenAdded(address indexed ibToken, uint256 amount);
@@ -71,12 +71,13 @@ interface IBlueberryStaking {
     /// @notice Emitted when a user accelerates their vesting schedule.
     event VestingAccelerated(
         address indexed user,
+        uint256 vestIndex,
         uint256 tokensClaimed,
         uint256 redistributedBLB
     );
 
     /// @notice Emitted when a user completes their vesting schedule.
-    event VestingCompleted(address indexed user, uint256 amount);
+    event VestingCompleted(address indexed user, uint256 vestIndex, uint256 amount);
 
     /// @notice Emitted when the admin updates the BasePenaltyRatio.
     event BasePenaltyRatioUpdated(uint256 basePenaltyRatio);
