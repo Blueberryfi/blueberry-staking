@@ -738,7 +738,7 @@ contract BlueberryStaking is
         address _uniswapPool,
         address _stableAsset,
         uint32 _observationPeriod
-    ) external whenPaused onlyOwner {
+    ) external onlyOwner {
         if (_uniswapPool == address(0) || _stableAsset == address(0)) {
             revert AddressZero();
         }

@@ -193,7 +193,6 @@ contract Control is Test {
     // Test changing the uniswap pool
     function testChangeUniswapPool() public {
         vm.startPrank(owner);
-        blueberryStaking.pause();
         
         // Change the uniswap pool to a new stable asset
         blueberryStaking.setUniswapV3Pool(
