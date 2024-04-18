@@ -761,7 +761,7 @@ contract BlueberryStaking is
         uniswapV3Info = UniswapV3PoolInfo({
             pool: _uniswapPool,
             observationPeriod: _observationPeriod,
-            blbIsToken0: IUniswapV3Pool(_uniswapPool).token0() == address(blb)
+            blbIsToken0: blbIsToken0
         });
 
         uint8 decimals = IERC20Metadata(_stableAsset).decimals();

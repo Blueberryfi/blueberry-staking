@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {BlueberryStaking} from "../src/BlueberryStaking.sol";
+import {BlueberryStaking, IBlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
 import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -207,7 +207,7 @@ contract Control is Test {
         assertEq(address(blueberryStaking.stableAsset()), USDC);
 
         // Expect the pool to revert since the stable asset is not in that pool
-        vm.expectRevert();
+        vm.expectRevert(IBlueberryStaking.InvalidStableAsset.selector);
         // Change the uniswap pool to a new stable asset
         blueberryStaking.setUniswapV3Pool(
             UNIPOOL_ETH_USDC,
