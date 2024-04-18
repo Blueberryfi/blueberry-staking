@@ -24,7 +24,9 @@ contract Control is Test {
 
     address[] public existingIbTokens;
 
+    address UNIPOOL_ETH_USDC =0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
     // Initial reward duration
     uint256 public constant REWARD_DURATION = 1_209_600;
@@ -196,13 +198,22 @@ contract Control is Test {
         
         // Change the uniswap pool to a new stable asset
         blueberryStaking.setUniswapV3Pool(
-            0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
+            UNIPOOL_ETH_USDC,
             USDC,
             3600
         );
 
         // Check that the stable token address was updated correctly
         assertEq(address(blueberryStaking.stableAsset()), USDC);
+
+        // Expect the pool to revert since the stable asset is not in that pool
+        vm.expectRevert();
+        // Change the uniswap pool to a new stable asset
+        blueberryStaking.setUniswapV3Pool(
+            UNIPOOL_ETH_USDC,
+            DAI,
+            3600
+        );
     }
 
     function testChangeRewardAmount() public {

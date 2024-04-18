@@ -92,10 +92,10 @@ interface IBlueberryStaking {
 
     /// @notice Emitted when the admin updates the uniswap pool.
     event UniswapV3PoolUpdated(
-        address _uniswapPool,
-        address _stableAsset,
+        address uniswapPool,
+        address stableAsset,
         uint8 decimals,
-        uint256 _observationPeriod
+        uint256 observationPeriod
     );
 
     /// @notice Emitted when the treasury collects fees from the acceleration of vesting schedules.

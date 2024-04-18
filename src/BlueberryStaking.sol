@@ -746,11 +746,16 @@ contract BlueberryStaking is
             revert InvalidObservationTime();
         }
         
-        address token0 = IUniswapV3Pool(_uniswapPool).token0();
-        address token1 = IUniswapV3Pool(_uniswapPool).token1();
+        bool blbIsToken0 = IUniswapV3Pool(_uniswapPool).token0() == address(blb);
 
-        if (_stableAsset != token0 && _stableAsset != token1) {
-            revert InvalidStableAsset();
+        if (blbIsToken0) {
+            address token1 =IUniswapV3Pool(_uniswapPool).token1();
+            if (token1 != _stableAsset) revert InvalidStableAsset();
+            stableAsset = IERC20(token1);
+        } else {
+            address token0 = IUniswapV3Pool(_uniswapPool).token0();
+            if (token0 != _stableAsset) revert InvalidStableAsset();
+            stableAsset = IERC20(token0);
         }
 
         uniswapV3Info = UniswapV3PoolInfo({
@@ -759,7 +764,6 @@ contract BlueberryStaking is
             blbIsToken0: IUniswapV3Pool(_uniswapPool).token0() == address(blb)
         });
 
-        stableAsset = IERC20(_stableAsset);
         uint8 decimals = IERC20Metadata(_stableAsset).decimals();
         stableDecimals = decimals;
 
