@@ -716,22 +716,6 @@ contract BlueberryStaking is
     }
 
     /**
-     * @notice Sets the  stable asset to an alternative in the event of a depeg
-     * @param _stableAsset The new stable asset address
-     */
-    function setStableAsset(address _stableAsset) external whenPaused onlyOwner {
-        if (_stableAsset == address(0)) {
-            revert AddressZero();
-        }
-        stableAsset = IERC20(_stableAsset);
-        uint8 decimals = IERC20Metadata(_stableAsset).decimals();
-
-        stableDecimals = decimals;
-
-        emit StableAssetUpdated(_stableAsset, decimals);
-    }
-
-    /**
      * @notice Sets the address of the treasury
      * @param _treasury The new treasury address
      */
@@ -747,17 +731,26 @@ contract BlueberryStaking is
     /**
      * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
      * @param _uniswapPool The new address of the uniswap pool
+     * @param _stableAsset The new address of the stable asset
      * @param _observationPeriod The new observation period for the uniswap pool
      */
     function setUniswapV3Pool(
         address _uniswapPool,
+        address _stableAsset,
         uint32 _observationPeriod
     ) external whenPaused onlyOwner {
-        if (_uniswapPool == address(0)) {
+        if (_uniswapPool == address(0) || _stableAsset == address(0)) {
             revert AddressZero();
         }
         if (_observationPeriod == 0 || _observationPeriod > 432_000) {
             revert InvalidObservationTime();
+        }
+        
+        address token0 = IUniswapV3Pool(_uniswapPool).token0();
+        address token1 = IUniswapV3Pool(_uniswapPool).token1();
+
+        if (_stableAsset != token0 && _stableAsset != token1) {
+            revert InvalidStableAsset();
         }
 
         uniswapV3Info = UniswapV3PoolInfo({
@@ -765,6 +758,12 @@ contract BlueberryStaking is
             observationPeriod: _observationPeriod,
             blbIsToken0: IUniswapV3Pool(_uniswapPool).token0() == address(blb)
         });
+
+        stableAsset = IERC20(_stableAsset);
+        uint8 decimals = IERC20Metadata(_stableAsset).decimals();
+        stableDecimals = decimals;
+
+        emit UniswapV3PoolUpdated(_uniswapPool, _stableAsset, decimals, _observationPeriod);
     }
 
     /// @notice Pauses the contract

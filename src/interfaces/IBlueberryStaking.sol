@@ -37,6 +37,9 @@ interface IBlueberryStaking {
     /// @notice Emitted if the observation time on the uniswap pool is greater than 432,000 seconds.
     error InvalidObservationTime();
 
+    /// @notice Emitted if the stable asset is not in the uniswap pool.
+    error InvalidStableAsset();
+
     /// @notice Emitted if a bToken being added already exists.
     error IBTokenAlreadyExists();
 
@@ -87,8 +90,13 @@ interface IBlueberryStaking {
     /// @notice Emitted when the admin updates the treasury address.
     event TreasuryUpdated(address treasury);
 
-    /// @notice Emitted when the admin updates the stable asset.
-    event StableAssetUpdated(address asset, uint256 decimals);
+    /// @notice Emitted when the admin updates the uniswap pool.
+    event UniswapV3PoolUpdated(
+        address _uniswapPool,
+        address _stableAsset,
+        uint8 decimals,
+        uint256 _observationPeriod
+    );
 
     /// @notice Emitted when the treasury collects fees from the acceleration of vesting schedules.
     event FeeCollected(address indexed user, uint256 amount);
