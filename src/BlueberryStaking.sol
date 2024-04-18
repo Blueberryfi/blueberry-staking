@@ -518,6 +518,10 @@ contract BlueberryStaking is
     function lastTimeRewardApplicable(
         address ibToken
     ) public view returns (uint256) {
+        if (totalSupply[ibToken] == 0) {
+            return lastUpdateTime[ibToken];
+        }
+
         if (block.timestamp > finishAt[ibToken]) {
             return finishAt[ibToken];
         } else {
