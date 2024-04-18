@@ -120,8 +120,11 @@ contract BlueberryStaking is
     /// @notice The price of BLB during the 1st period of the lockdrop
     uint256 private constant PERIOD_ONE_BLB_PRICE = 0.02e18;
 
-    /// @notice The price of BLB during the 1st period of the lockdrop
+    /// @notice The price of BLB during the 2nd period of the lockdrop
     uint256 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
+
+    /// @notice The denominator for the Uniswap pricing calculations
+    uint256 private constant UNISWAP_PRICING_DENOMINATOR = 2 ** 96;
 
     /*//////////////////////////////////////////////////
                         MODIFIERS
@@ -177,7 +180,8 @@ contract BlueberryStaking is
         if (
             _blb == address(0) ||
             _stableAsset == address(0) ||
-            _treasury == address(0)
+            _treasury == address(0) ||
+            _admin == address(0)
         ) {
             revert AddressZero();
         }
@@ -756,7 +760,11 @@ contract BlueberryStaking is
             revert InvalidObservationTime();
         }
 
-        uniswapV3Info = UniswapV3PoolInfo(_uniswapPool, _observationPeriod);
+        uniswapV3Info = UniswapV3PoolInfo({
+            pool: _uniswapPool,
+            observationPeriod: _observationPeriod,
+            blbIsToken0: IUniswapV3Pool(_uniswapPool).token0() == address(blb)
+        });
     }
 
     /// @notice Pauses the contract
@@ -825,22 +833,21 @@ contract BlueberryStaking is
             FixedPoint96.Q96
         );
 
-        uint256 _decimalsStable = stableDecimals;
-
-        // Adjust for decimals
-        if (BLB_DECIMALS > _decimalsStable) {
-            _priceX96 /= 10 ** (BLB_DECIMALS - _decimalsStable);
-        } else if (_decimalsStable > BLB_DECIMALS) {
-            _priceX96 *= 10 ** (_decimalsStable - BLB_DECIMALS);
+        if (_uniswapV3Info.blbIsToken0) {
+            return
+                FullMath.mulDiv(
+                    _priceX96,
+                    10 ** (18 + BLB_DECIMALS - stableDecimals),
+                    UNISWAP_PRICING_DENOMINATOR
+                );
+        } else {
+            uint256 inversePrice = FullMath.mulDiv(
+                _priceX96,
+                10 ** (18 - BLB_DECIMALS + stableDecimals),
+                UNISWAP_PRICING_DENOMINATOR
+            );
+            return 10 ** 36 / inversePrice;
         }
-
-        // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
-        // To convert this to a human-readable format, you can divide by 2^96:
-
-        uint256 _price = _priceX96 / 2 ** 96;
-
-        // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
-        return _price;
     }
 
     /**

@@ -116,10 +116,12 @@ interface IBlueberryStaking {
      * @dev This is used to fetch the price of BLB in the stable asset
      * @param pool The address of the Uniswap V3 pool
      * @param observationPeriod The observation period for the Uniswap V3 pool
+     * @param blbIsToken0 True if BLB is token0 in the pool, false if BLB is token1
      */
     struct UniswapV3PoolInfo {
         address pool;
         uint32 observationPeriod;
+        bool blbIsToken0;
     }
 
     /*//////////////////////////////////////////////////

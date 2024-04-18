@@ -1,16 +1,17 @@
-name: test
+name: Tests
 
-on: workflow_dispatch
+on: push
 
 env:
   FOUNDRY_PROFILE: ci
+  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
 
 jobs:
   check:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Staking Repository Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
