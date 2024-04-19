@@ -118,10 +118,10 @@ contract BlueberryStaking is
     uint8 private constant BLB_DECIMALS = 18;
 
     /// @notice The price of BLB during the 1st period of the lockdrop
-    uint256 private constant PERIOD_ONE_BLB_PRICE = 0.02e18;
+    uint128 private constant PERIOD_ONE_BLB_PRICE = 0.02e18;
 
     /// @notice The price of BLB during the 2nd period of the lockdrop
-    uint256 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
+    uint128 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
 
     /*//////////////////////////////////////////////////
                         MODIFIERS
@@ -282,7 +282,7 @@ contract BlueberryStaking is
             }
 
             if (redistributedBLB > 0) {
-                vest.extra = (vest.amount * redistributedBLB) / totalVestAmount;
+                vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
             }
         }
 
@@ -302,16 +302,16 @@ contract BlueberryStaking is
             }
 
             IERC20 _ibToken = IERC20(_ibTokens[i]);
-            uint256 reward = rewards[msg.sender][address(_ibToken)];
+            uint128 reward = uint128(rewards[msg.sender][address(_ibToken)]);
 
             if (reward > 0) {
                 totalRewards += reward;
                 rewards[msg.sender][address(_ibToken)] = 0;
 
-                uint256 _priceUnderlying = getPrice();
+                uint128 _priceUnderlying = getPrice();
 
                 vesting[msg.sender].push(
-                    Vest(reward, 0, block.timestamp, _priceUnderlying)
+                    Vest(reward, 0, uint128(block.timestamp), _priceUnderlying)
                 );
             }
         }
@@ -445,7 +445,7 @@ contract BlueberryStaking is
     //////////////////////////////////////////////////*/
 
     /// @inheritdoc IBlueberryStaking
-    function getPrice() public view returns (uint256 _price) {
+    function getPrice() public view returns (uint128 _price) {
         // during the lockdrop period the underlying blb token price is locked
         uint256 _period = (block.timestamp - deployedAt) /
             (LOCKDROP_DURATION / 2);
@@ -791,7 +791,7 @@ contract BlueberryStaking is
      * @dev A default value of $0.04 is returned if the Uniswap V3 pool is not set
      * @return The price of BLB in terms of the stable asset
      */
-    function _fetchTWAP() internal view returns (uint256) {
+    function _fetchTWAP() internal view returns (uint128) {
         UniswapV3PoolInfo memory _uniswapV3Info = uniswapV3Info;
         IUniswapV3Pool _pool = IUniswapV3Pool(_uniswapV3Info.pool);
         uint32 _observationPeriod = _uniswapV3Info.observationPeriod;
@@ -833,7 +833,7 @@ contract BlueberryStaking is
         // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
         // To convert this to a human-readable format, you can divide by 2^96:
 
-        uint256 _price = _priceX96 / 2 ** 96;
+        uint128 _price = uint128(_priceX96 / 2 ** 96);
 
         // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
         return _price;
