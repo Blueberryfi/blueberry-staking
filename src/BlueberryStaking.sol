@@ -831,18 +831,18 @@ contract BlueberryStaking is
 
         if (_uniswapV3Info.blbIsToken0) {
             return
-                FullMath.mulDiv(
+                uint128(FullMath.mulDiv(
                     _priceX96,
                     10 ** (18 + BLB_DECIMALS - stableDecimals),
                     UNISWAP_PRICING_DENOMINATOR
-                );
+                ));
         } else {
             uint256 inversePrice = FullMath.mulDiv(
                 _priceX96,
                 10 ** (18 - BLB_DECIMALS + stableDecimals),
                 UNISWAP_PRICING_DENOMINATOR
             );
-            return 10 ** 36 / inversePrice;
+            return uint128(10 ** 36 / inversePrice);
         }
     }
 
