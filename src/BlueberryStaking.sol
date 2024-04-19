@@ -674,7 +674,7 @@ contract BlueberryStaking is
 
             _setRewardRate(_ibToken, _amount, _rewardDuration);
             lastUpdateTime[_ibToken] = block.timestamp;
-            finishAt[_ibToken] = block.timestamp + rewardDuration;
+            finishAt[_ibToken] = block.timestamp + _rewardDuration;
 
             emit RewardAmountModified(_ibToken, _amount);
         }
