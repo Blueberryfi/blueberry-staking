@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../lib/forge-std/src/Test.sol";
 import {TransparentUpgradeableProxy} from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {BlueberryStaking} from "../src/BlueberryStaking.sol";
+import {BlueberryStaking, IBlueberryStaking} from "../src/BlueberryStaking.sol";
 import {BlueberryToken} from "../src/BlueberryToken.sol";
 import {MockIbToken} from "./mocks/MockIbToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -24,11 +24,20 @@ contract Control is Test {
 
     address[] public existingIbTokens;
 
+    address UNIPOOL_ETH_USDC =0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+    address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
     // Initial reward duration
     uint256 public constant REWARD_DURATION = 1_209_600;
 
+    uint256 mainnetFork;
+    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+
     // Initialize the contract and deploy necessary instances
     function setUp() public {
+        mainnetFork = vm.createFork(MAINNET_RPC_URL);
+        vm.selectFork(mainnetFork);
         vm.startPrank(owner);
         // Deploy mock tokens and BlueberryToken
         mockIbToken1 = new MockIbToken();
@@ -183,18 +192,28 @@ contract Control is Test {
         assertEq(blb.balanceOf(address(blueberryStaking)),(1e19 + (1e19 * 4) + (1e23 * 4)));
     }
 
-    // Test changing the stable token address
-    function testChangeStable() public {
+    // Test changing the uniswap pool
+    function testChangeUniswapPool() public {
         vm.startPrank(owner);
-
-        // Deploy a new stable coin 
-        MockToken token = new MockToken(9);
         
-        // Change the stable token to be the mock token with 9 decimals instead of the original 6 decimal token
-        blueberryStaking.setStableAsset(address(token));
+        // Change the uniswap pool to a new stable asset
+        blueberryStaking.setUniswapV3Pool(
+            UNIPOOL_ETH_USDC,
+            USDC,
+            3600
+        );
 
         // Check that the stable token address was updated correctly
-        assertEq(address(blueberryStaking.stableAsset()), address(token));
+        assertEq(address(blueberryStaking.stableAsset()), USDC);
+
+        // Expect the pool to revert since the stable asset is not in that pool
+        vm.expectRevert(IBlueberryStaking.InvalidStableAsset.selector);
+        // Change the uniswap pool to a new stable asset
+        blueberryStaking.setUniswapV3Pool(
+            UNIPOOL_ETH_USDC,
+            DAI,
+            3600
+        );
     }
 
     function testChangeRewardAmount() public {

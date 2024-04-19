@@ -123,6 +123,9 @@ contract BlueberryStaking is
     /// @notice The price of BLB during the 2nd period of the lockdrop
     uint128 private constant PERIOD_TWO_BLB_PRICE = 0.04e18;
 
+    /// @notice The denominator for the Uniswap pricing calculations
+    uint256 private constant UNISWAP_PRICING_DENOMINATOR = 2 ** 96;
+
     /*//////////////////////////////////////////////////
                         MODIFIERS
     //////////////////////////////////////////////////*/
@@ -706,22 +709,6 @@ contract BlueberryStaking is
     }
 
     /**
-     * @notice Sets the  stable asset to an alternative in the event of a depeg
-     * @param _stableAsset The new stable asset address
-     */
-    function setStableAsset(address _stableAsset) external onlyOwner {
-        if (_stableAsset == address(0)) {
-            revert AddressZero();
-        }
-        stableAsset = IERC20(_stableAsset);
-        uint8 decimals = IERC20Metadata(_stableAsset).decimals();
-
-        stableDecimals = decimals;
-
-        emit StableAssetUpdated(_stableAsset, decimals);
-    }
-
-    /**
      * @notice Sets the address of the treasury
      * @param _treasury The new treasury address
      */
@@ -737,20 +724,43 @@ contract BlueberryStaking is
     /**
      * @notice Changes the information for the uniswap V3 pool to fetch the price of BLB
      * @param _uniswapPool The new address of the uniswap pool
+     * @param _stableAsset The new address of the stable asset
      * @param _observationPeriod The new observation period for the uniswap pool
      */
     function setUniswapV3Pool(
         address _uniswapPool,
+        address _stableAsset,
         uint32 _observationPeriod
     ) external onlyOwner {
-        if (_uniswapPool == address(0)) {
+        if (_uniswapPool == address(0) || _stableAsset == address(0)) {
             revert AddressZero();
         }
         if (_observationPeriod == 0 || _observationPeriod > 432_000) {
             revert InvalidObservationTime();
         }
+        
+        bool blbIsToken0 = IUniswapV3Pool(_uniswapPool).token0() == address(blb);
 
-        uniswapV3Info = UniswapV3PoolInfo(_uniswapPool, _observationPeriod);
+        if (blbIsToken0) {
+            address token1 =IUniswapV3Pool(_uniswapPool).token1();
+            if (token1 != _stableAsset) revert InvalidStableAsset();
+            stableAsset = IERC20(token1);
+        } else {
+            address token0 = IUniswapV3Pool(_uniswapPool).token0();
+            if (token0 != _stableAsset) revert InvalidStableAsset();
+            stableAsset = IERC20(token0);
+        }
+
+        uniswapV3Info = UniswapV3PoolInfo({
+            pool: _uniswapPool,
+            observationPeriod: _observationPeriod,
+            blbIsToken0: blbIsToken0
+        });
+
+        uint8 decimals = IERC20Metadata(_stableAsset).decimals();
+        stableDecimals = decimals;
+
+        emit UniswapV3PoolUpdated(_uniswapPool, _stableAsset, decimals, _observationPeriod);
     }
 
     /// @notice Pauses the contract
@@ -819,22 +829,21 @@ contract BlueberryStaking is
             FixedPoint96.Q96
         );
 
-        uint256 _decimalsStable = stableDecimals;
-
-        // Adjust for decimals
-        if (BLB_DECIMALS > _decimalsStable) {
-            _priceX96 /= 10 ** (BLB_DECIMALS - _decimalsStable);
-        } else if (_decimalsStable > BLB_DECIMALS) {
-            _priceX96 *= 10 ** (_decimalsStable - BLB_DECIMALS);
+        if (_uniswapV3Info.blbIsToken0) {
+            return
+                uint128(FullMath.mulDiv(
+                    _priceX96,
+                    10 ** (18 + BLB_DECIMALS - stableDecimals),
+                    UNISWAP_PRICING_DENOMINATOR
+                ));
+        } else {
+            uint256 inversePrice = FullMath.mulDiv(
+                _priceX96,
+                10 ** (18 - BLB_DECIMALS + stableDecimals),
+                UNISWAP_PRICING_DENOMINATOR
+            );
+            return uint128(10 ** 36 / inversePrice);
         }
-
-        // Now priceX96 is the price of blb in terms of stableAsset, multiplied by 2^96.
-        // To convert this to a human-readable format, you can divide by 2^96:
-
-        uint128 _price = uint128(_priceX96 / 2 ** 96);
-
-        // Now 'price' is the price of blb in terms of stableAsset, in the correct decimal places.
-        return _price;
     }
 
     /**

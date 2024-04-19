@@ -19,3 +19,6 @@ remappings = [
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/",
 ]
+
+[rpc_endpoints]
+mainnet = "${MAINNET_RPC_URL}"
