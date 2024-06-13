@@ -285,7 +285,9 @@ contract BlueberryStaking is
             }
 
             if (redistributedBLB > 0) {
-                vest.extra = (vest.amount * uint128(redistributedBLB)) / uint128(totalVestAmount);
+                vest.extra = uint128(
+                    (vest.amount * redistributedBLB) / totalVestAmount
+                );
             }
         }
 
@@ -745,11 +747,12 @@ contract BlueberryStaking is
         if (_observationPeriod == 0 || _observationPeriod > 432_000) {
             revert InvalidObservationTime();
         }
-        
-        bool blbIsToken0 = IUniswapV3Pool(_uniswapPool).token0() == address(blb);
+
+        bool blbIsToken0 = IUniswapV3Pool(_uniswapPool).token0() ==
+            address(blb);
 
         if (blbIsToken0) {
-            address token1 =IUniswapV3Pool(_uniswapPool).token1();
+            address token1 = IUniswapV3Pool(_uniswapPool).token1();
             if (token1 != _stableAsset) revert InvalidStableAsset();
             stableAsset = IERC20(token1);
         } else {
@@ -767,7 +770,12 @@ contract BlueberryStaking is
         uint8 decimals = IERC20Metadata(_stableAsset).decimals();
         stableDecimals = decimals;
 
-        emit UniswapV3PoolUpdated(_uniswapPool, _stableAsset, decimals, _observationPeriod);
+        emit UniswapV3PoolUpdated(
+            _uniswapPool,
+            _stableAsset,
+            decimals,
+            _observationPeriod
+        );
     }
 
     /// @notice Pauses the contract
@@ -838,11 +846,13 @@ contract BlueberryStaking is
 
         if (_uniswapV3Info.blbIsToken0) {
             return
-                uint128(FullMath.mulDiv(
-                    _priceX96,
-                    10 ** (18 + BLB_DECIMALS - stableDecimals),
-                    UNISWAP_PRICING_DENOMINATOR
-                ));
+                uint128(
+                    FullMath.mulDiv(
+                        _priceX96,
+                        10 ** (18 + BLB_DECIMALS - stableDecimals),
+                        UNISWAP_PRICING_DENOMINATOR
+                    )
+                );
         } else {
             uint256 inversePrice = FullMath.mulDiv(
                 _priceX96,
